@@ -47,7 +47,7 @@ namespace ProgramaDaniel
                                 .Single(t => t.Trigger == pi);
                             break;
                         }
-                        catch { }
+                        catch (Exception erro) { Console.WriteLine(erro.Message); }
                     }
                 }
 
@@ -598,7 +598,7 @@ namespace ProgramaDaniel
             }
         }
 
-        public static void SerializePolicy(Dictionary<AbstractState, List<(AbstractEvent, double)>> piValue, string path)
+        public static void SerializePolicyValue(Dictionary<AbstractState, List<(AbstractEvent, double)>> piValue, string path)
         {
             IFormatter formatter = new BinaryFormatter();
             Stream stream = new FileStream(path, FileMode.Create, FileAccess.Write, FileShare.None);
@@ -606,7 +606,7 @@ namespace ProgramaDaniel
             stream.Close();
         }
 
-        public static Dictionary<AbstractState, List<(AbstractEvent, double)>> DeserializePolicy(string path)
+        public static Dictionary<AbstractState, List<(AbstractEvent, double)>> DeserializePolicyValue(string path)
         {
             IFormatter formatter = new BinaryFormatter();
             Stream stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read);
@@ -615,7 +615,7 @@ namespace ProgramaDaniel
             return obj;
         }
 
-        public static void SerializePolicy2(Dictionary<AbstractState, List<AbstractEvent>> pi, string path)
+        public static void SerializePolicy(Dictionary<AbstractState, List<AbstractEvent>> pi, string path)
         {
             IFormatter formatter = new BinaryFormatter();
             Stream stream = new FileStream(path, FileMode.Create, FileAccess.Write, FileShare.None);
@@ -623,7 +623,7 @@ namespace ProgramaDaniel
             stream.Close();
         }
 
-        public static Dictionary<AbstractState, List<AbstractEvent>> DeserializePolicy2(string path)
+        public static Dictionary<AbstractState, List<AbstractEvent>> DeserializePolicy(string path)
         {
             IFormatter formatter = new BinaryFormatter();
             Stream stream = new FileStream(path, FileMode.Open, FileAccess.Read, FileShare.Read);

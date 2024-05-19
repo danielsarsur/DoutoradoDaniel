@@ -156,17 +156,9 @@ namespace ProgramaDaniel
                             var destino = destino_prob.Item1;
                             var prob = destino_prob.Item2;
                             soma += (prob * (destino.ActiveTasks() + (gamma * V_anterior[destino])));
-
-                            //Console.WriteLine($"transição: {origem}, {evento}, {destino} ");
-                            //Console.WriteLine($"= {prob} * [ {destino.ActiveTasks()} + 0,7 * {V_anterior[destino]} ]");
-                            //Console.WriteLine($"soma = {soma}");
-                            //Console.WriteLine();
-
-
                         }
                         if (soma > v_max) v_max = soma;
                     }
-                    //Console.WriteLine(v_max + "\n\n*****************\n");
                     V[kvp.Key] = v_max;
                 }
                 it++;

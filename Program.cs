@@ -8,8 +8,6 @@ namespace ProgramaDaniel
 {
     internal class Program
     {
-        //static string texto = "";
-
         private static void Main()
         {
             try
@@ -18,8 +16,8 @@ namespace ProgramaDaniel
                 System.Threading.Thread.CurrentThread.CurrentCulture = new System.Globalization.CultureInfo("en-US");
 
                 Stopwatch timer_total = new Stopwatch(); timer_total.Start();
-
                 Stopwatch timer_sup = new Stopwatch(); timer_sup.Start();
+
                 //ISchedulingProblem plant = new SF();
                 //ISchedulingProblem plant = new SFextended();
                 //ISchedulingProblem plant = new ITL();
@@ -28,15 +26,9 @@ namespace ProgramaDaniel
                 //ISchedulingProblem plant = new CT2R();
                 //ISchedulingProblemAB plant = new SFMmodular();
                 ISchedulingProblemABC plant = new EZPELETA();
+
                 var tempo_sup = timer_sup.ElapsedMilliseconds; timer_sup.Stop();
-                Console.WriteLine($"\nComputou os supervisores em {tempo_sup / 1000.0} segundos\n\n");
-
-                //if (File.Exists("politica_teste.bin"))
-                //{
-                //    var pol = Tools.DeserializePolicy("politica_teste.bin");
-                //    Tools.print_politica(pol);
-                //}
-
+                Console.WriteLine($"\nComputou/carregou os supervisores em {tempo_sup / 1000.0} segundos\n\n");
 
                 Console.WriteLine("*** MODULAR LOCAL ***");
                 //SeqFullModular(plant);
@@ -46,8 +38,7 @@ namespace ProgramaDaniel
                 SeqFull(plant);
                 //SeqControllable();
 
-                var tempo_total = timer_total.ElapsedMilliseconds;
-                timer_total.Stop();
+                var tempo_total = timer_total.ElapsedMilliseconds; timer_total.Stop();
                 Console.WriteLine($"\nTempo total {tempo_total / 1000f} s");
             }
             catch (Exception erro) { Console.WriteLine(erro.Message); }
@@ -86,22 +77,25 @@ namespace ProgramaDaniel
 
                 // Calcula as transições de probabilidade. P é um dicionário cuja chave é o estado de origem e a chave
                 // é um outro dicionário que mapeia o Estado-Ação para uma lista (estado_destino, probabilidade)
-                (var tempo_prob, var P) = Tools.Timming(() => MDP.TransitionProbability(transitions));
+                (var tempo_prob, var P) = Tools.Timming(() => 
+                    MDP.TransitionProbability(transitions));
+
+                Console.WriteLine($"Gerou as probabilidades em {tempo_prob} s");
 
                 // Desconto e limiar de parada
-                var gamma = 0.7f;
-                var threshold = 0.001f;
+                var gamma = 0.7f; var threshold = 0.001f;
 
                 // Calcula o valor de forma iterativa para cada estado. Recompensa é a quantidade de tarefas ativas
                 (var tempo_valor, var V) = Tools.Timming(() =>
                     MDP.ValueIterationParallelismReward(S, P, gamma, threshold));
 
+                Console.WriteLine($"Iterou os valores em {tempo_valor} s");
+
                 // Calcula a política para cada estado. É utilizada uma lista de eventos, pois o eventoda política pode não ser temporalmente factível
-                (var tempo_politica, var PI_value) = Tools.Timming(() => MDP.PolicyParallelismReward(S, P, gamma, V));
+                (var tempo_politica, var PI_value) = Tools.Timming(() => 
+                    MDP.PolicyParallelismReward(S, P, gamma, V));
                 PI_vector.Add(PI_value);
 
-                Console.WriteLine($"Gerou as probabilidades em {tempo_prob} s");
-                Console.WriteLine($"Iterou os valores em {tempo_valor} s");
                 Console.WriteLine($"Calculou a política em {tempo_politica} s");
 
                 supervisors.Add((transitions: transitions, PI: PI_value, state: sup.InitialState));
@@ -110,9 +104,9 @@ namespace ProgramaDaniel
                 //System.IO.File.AppendAllText("politica.txt", $"{s.Name}\n");
                 //Tools.print_politica(PI_value);
                 //System.IO.File.AppendAllText("politica.txt", "\n\n");
-                //Console.WriteLine();
-                //Console.WriteLine();
+                //Console.WriteLine(); Console.WriteLine();
             }
+
             Stopwatch timer_seq = new Stopwatch(); timer_seq.Start();
             List<double> tempo_seq = new List<double> { };
             List<float> makespan = new List<float> { };
@@ -133,6 +127,7 @@ namespace ProgramaDaniel
                     //(var tempo_sequencia, var (seq, time)) = Tools.Timming(() =>
                     //    Tools.Sequence(plant.InitialState, plant.TargetState, plant.InitialScheduler, plant.DepthAB.Item1 * prod.Item1 + plant.DepthAB.Item2 * prod.Item2,
                     //        plant.UpdateFunction, plant.InitialRestrition(prod), transitions, PI));
+
                     (var tempo_sequencia, var (seq, time)) = Tools.Timming(() =>
                         Tools.SequenceModular(plant.InitialScheduler, plant.Depth * prod, plant.UpdateFunction, plant.InitialRestrition(prod), supervisors, events));
 
@@ -150,87 +145,57 @@ namespace ProgramaDaniel
 
         internal static void SeqFull(ISchedulingProblemABC plant)
         {
-            Dictionary<AbstractState, List<(AbstractEvent, double)>> PI_value = null;
             Dictionary<AbstractState, List<AbstractEvent>> PI = null;
 
-            var transitions = plant.Supervisor.Transitions.AsParallel()
-                                .GroupBy(t => t.Origin)
-                                .ToDictionary(gr => gr.Key, gr => gr.ToArray());
+            var transitions = plant.Supervisor.Transitions.AsParallel().GroupBy(t => t.Origin)
+                .ToDictionary(gr => gr.Key, gr => gr.ToArray());
 
             //Console.WriteLine((plant.ToString()).Split('.').Last());
             //Console.WriteLine(plant.Supervisor.States.Count());
             //Console.WriteLine(plant.Supervisor.Transitions.Count());
 
 
-            //if (File.Exists("Politica_Ezpeleta_mono.bin"))
-            //{
-            //    Stopwatch timer_aux = new Stopwatch(); timer_aux.Start();
-            //    Console.WriteLine("Importando politica");
-            //    PI = Tools.DeserializePolicy2("Politica_Ezpeleta_mono.bin");
-            //    Console.WriteLine($"Importou a política em {timer_aux.ElapsedMilliseconds / 1000} s");
-            //    timer_aux.Stop();
-            //}
-            //else
-            //{
+            if (File.Exists("Politica_Ezpeleta_mono.bin"))
+            {
+                (var tempo_pi, PI) = Tools.Timming(() =>
+                    Tools.DeserializePolicy("Politica_Ezpeleta_mono.bin"));
+                
+                Console.WriteLine($"Importou a política em {tempo_pi} s");
+            }
+            else
+            {
                 var S = plant.Supervisor.States.ToList();
-                //var A = plant.Supervisor.Events.ToList();
 
-                Stopwatch timer_aux = new Stopwatch(); timer_aux.Start();
-
-                Console.WriteLine($"Carregar transitions: {timer_aux.ElapsedMilliseconds / 1000} s"); timer_aux.Restart();
                 // Calcula as transições de probabilidade. P é um dicionário cuja chave é o estado de origem e a chave
                 // é um outro dicionário que mapeia o Estado-Ação para uma lista (estado_destino, probabilidade)
-                (var tempo_prob, var P) = Tools.Timming(() => MDP.TransitionProbability(transitions));
-                Console.WriteLine($"Computou probabilidades: {timer_aux.ElapsedMilliseconds / 1000} s"); timer_aux.Restart();
-                
+                (var tempo_prob, var P) = Tools.Timming(() => 
+                    MDP.TransitionProbability(transitions));
+
+                Console.WriteLine($"Gerou as probabilidades em {tempo_prob} s");
+
                 // Desconto e limiar de parada
-                var gamma = 0.7f;
-                var threshold = 0.001f;
+                var gamma = 0.7f; var threshold = 0.001f;
 
                 // Calcula o valor de forma iterativa para cada estado. Recompensa é a quantidade de tarefas ativas
                 (var tempo_valor, var V) = Tools.Timming(() =>
                     MDP.ValueIterationParallelismReward(S, P, gamma, threshold));
-                Console.WriteLine($"Computou valor: {timer_aux.ElapsedMilliseconds / 60000} min"); timer_aux.Restart();
-                // Calcula a política para cada estado. É utilizada uma lista de eventos, pois o eventoda política pode não ser temporalmente factível
-                (var tempo_politica, PI_value) = Tools.Timming(() => MDP.PolicyParallelismReward(S, P, gamma, V));
 
-                //Console.WriteLine("Testa se PI_value tem estado inicial");
-                //try
-                //{
-                //    var aux = PI_value[plant.InitialState];
-                //}
-                //catch (Exception ex)
-                //{
-                //    Console.WriteLine(ex.Message);
-                //}
-
-                Console.WriteLine($"Computou política: {timer_aux.ElapsedMilliseconds / 1000} s"); timer_aux.Restart();
-                PI = PI_value.ToDictionary(kvp => kvp.Key, kvp => kvp.Value.Select(item => item.Item1).ToList());
-
-                //Console.WriteLine("Testa se PI tem estado inicial");
-                //try
-                //{
-                //    var aux = PI[plant.InitialState];
-                //}
-                //catch (Exception ex)
-                //{
-                //    Console.WriteLine(ex.Message);
-                //}
-
-                //Tools.SerializePolicy2(PI, "Politica_Ezpeleta_mono.bin");
-
-                Console.WriteLine($"Gerou as probabilidades em {tempo_prob} s");
                 Console.WriteLine($"Iterou os valores em {tempo_valor} s");
+
+                // Calcula a política para cada estado. É utilizada uma lista de eventos, pois o eventoda política pode não ser temporalmente factível
+                (var tempo_politica, var PI_value) = Tools.Timming(() => 
+                    MDP.PolicyParallelismReward(S, P, gamma, V));
+
                 Console.WriteLine($"Calculou a política em {tempo_politica} s");
 
+                PI = PI_value.ToDictionary(kvp => kvp.Key, kvp => kvp.Value.Select(item => item.Item1).ToList());
 
-            //}
-
-            //var PI = PI_value.ToDictionary(kvp => kvp.Key, kvp => kvp.Value.Select(item => item.Item1).ToList());
+                //Tools.SerializePolicy(PI, "Politica_Ezpeleta_mono.bin");
+            }
 
             //Tools.print_politica(PI_value);
             Stopwatch timer_seq = new Stopwatch(); timer_seq.Start();
-            List<double> tempo_seq = new List<double> { };
+            List<double> tempos_seq = new List<double> { };
             List<float> makespan = new List<float> { };
 
             for (var i = 0; i < 1; i++)
@@ -257,16 +222,15 @@ namespace ProgramaDaniel
                     // Ezpeleta
                     var (depthA, depthB, depthC) = plant.DepthABC;
                     var (nA, nB, nC) = prod;
-
                     (var tempo_sequencia, var (seq, time)) = Tools.Timming(() =>
                         Tools.Sequence(plant.InitialState, plant.TargetState, plant.InitialScheduler, depthA * nA + depthB * nB + depthC * nC,
                             plant.UpdateFunction, plant.InitialRestrition(prod), transitions, PI));
 
-                    tempo_seq.Add(tempo_sequencia);
+                    tempos_seq.Add(tempo_sequencia);
                     makespan.Add(time.Last());
 
                     Console.WriteLine($"Makespan: {makespan.Last()} u.t.");
-                    Console.WriteLine($"Computou a sequência em {tempo_seq.Last()} s");
+                    Console.WriteLine($"Computou a sequência em {tempos_seq.Last()} s");
                 }
             }
             timer_seq.Stop();
