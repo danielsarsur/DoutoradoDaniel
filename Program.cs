@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.ComponentModel.DataAnnotations;
 using System.Diagnostics;
 using System.Linq;
 using UltraDES;
@@ -21,17 +22,16 @@ namespace ProgramaDaniel
                 //ISchedulingProblem plant = new SF();
                 //ISchedulingProblem plant = new SFextended();
                 //ISchedulingProblem plant = new ITL();
-                //ISchedulingProblem plant = new CT2M1R();**************
-                //ISchedulingProblem plant = new CT1R();
+                ISchedulingProblem plant = new CT1R();
                 //ISchedulingProblem plant = new CT2R();
                 //ISchedulingProblemAB plant = new SFMmodular();
-                ISchedulingProblemABC plant = new EZPELETA();
+                //ISchedulingProblemABC plant = new EZPELETA();
 
                 var tempo_sup = timer_sup.ElapsedMilliseconds; timer_sup.Stop();
                 Console.WriteLine($"\nComputou/carregou os supervisores em {tempo_sup / 1000.0} segundos\n\n");
 
                 Console.WriteLine("*** MODULAR LOCAL ***");
-                //SeqFullModular(plant);
+                SeqFullModular(plant);
 
                 Console.WriteLine("\n\n*** MONOLITICO ***");
 
@@ -47,7 +47,7 @@ namespace ProgramaDaniel
             Console.ReadLine();
         }
 
-        internal static void SeqFullModular(ISchedulingProblemABC plant)
+        internal static void SeqFullModular(ISchedulingProblem plant)
         {
             foreach (var s in plant.Supervisors)
             {
@@ -114,7 +114,7 @@ namespace ProgramaDaniel
             for (var i = 0; i < 1; i++)
             {
                 //var products = new[] { (1000, 1000) }
-                var products = new[] { 1, 2, 3, 10, 100, 1000 };
+                var products = new[] { 3 };
                 foreach (var prod in products)
                 {
                     Console.WriteLine("\nLote: " + prod);
@@ -136,6 +136,12 @@ namespace ProgramaDaniel
 
                     Console.WriteLine($"Makespan: {makespan.Last()} u.t.");
                     Console.WriteLine($"Computou a sequência em {tempo_seq.Last()} s");
+
+                    //foreach (var e in seq)
+                    //{
+                    //    Console.Write($"{e}, \n");
+                    //}
+                    //Console.WriteLine();
                 }
             }
             timer_seq.Stop();
@@ -143,7 +149,7 @@ namespace ProgramaDaniel
             //System.IO.File.AppendAllText(path, texto);
         }
 
-        internal static void SeqFull(ISchedulingProblemABC plant)
+        internal static void SeqFull(ISchedulingProblem plant)
         {
             Dictionary<AbstractState, List<AbstractEvent>> PI = null;
 
@@ -155,15 +161,15 @@ namespace ProgramaDaniel
             //Console.WriteLine(plant.Supervisor.Transitions.Count());
 
 
-            if (File.Exists("Politica_Ezpeleta_mono.bin"))
-            {
-                (var tempo_pi, PI) = Tools.Timming(() =>
-                    Tools.DeserializePolicy("Politica_Ezpeleta_mono.bin"));
+            //if (File.Exists("Politica_Ezpeleta_mono.bin"))
+            //{
+            //    (var tempo_pi, PI) = Tools.Timming(() =>
+            //        Tools.DeserializePolicy("Politica_Ezpeleta_mono.bin"));
                 
-                Console.WriteLine($"Importou a política em {tempo_pi} s");
-            }
-            else
-            {
+            //    Console.WriteLine($"Importou a política em {tempo_pi} s");
+            //}
+            //else
+            //{
                 var S = plant.Supervisor.States.ToList();
 
                 // Calcula as transições de probabilidade. P é um dicionário cuja chave é o estado de origem e a chave
@@ -191,7 +197,7 @@ namespace ProgramaDaniel
                 PI = PI_value.ToDictionary(kvp => kvp.Key, kvp => kvp.Value.Select(item => item.Item1).ToList());
 
                 //Tools.SerializePolicy(PI, "Politica_Ezpeleta_mono.bin");
-            }
+            //}
 
             //Tools.print_politica(PI_value);
             Stopwatch timer_seq = new Stopwatch(); timer_seq.Start();
@@ -200,8 +206,8 @@ namespace ProgramaDaniel
 
             for (var i = 0; i < 1; i++)
             {
-                var products = new[] { (100, 100, 100), (150, 75, 75) };
-                //var products = new[] { 1, 2, 3, 10, 100, 1000 };
+                //var products = new[] { (100, 100, 100), (150, 75, 75) };
+                var products = new[] { 3 };
                 foreach (var prod in products)
                 {
                     Console.WriteLine("\nLote: " + prod);
@@ -215,22 +221,29 @@ namespace ProgramaDaniel
                     //    Tools.Sequence(plant.InitialState, plant.TargetState, plant.InitialScheduler, plant.DepthAB.Item1 * prod.Item1 + plant.DepthAB.Item2 * prod.Item2,
                     //        plant.UpdateFunction, plant.InitialRestrition(prod), transitions, PI));
 
-                    //(var tempo_sequencia, var (seq, time)) = Tools.Timming(() =>
-                    //    Tools.Sequence(plant.InitialState, plant.TargetState, plant.InitialScheduler, plant.Depth * prod,
-                    //        plant.UpdateFunction, plant.InitialRestrition(prod), transitions, PI));
+                    // SF, CT
+                    (var tempo_sequencia, var (seq, time)) = Tools.Timming(() =>
+                        Tools.Sequence(plant.InitialState, plant.TargetState, plant.InitialScheduler, plant.Depth * prod,
+                            plant.UpdateFunction, plant.InitialRestrition(prod), transitions, PI));
 
                     // Ezpeleta
-                    var (depthA, depthB, depthC) = plant.DepthABC;
-                    var (nA, nB, nC) = prod;
-                    (var tempo_sequencia, var (seq, time)) = Tools.Timming(() =>
-                        Tools.Sequence(plant.InitialState, plant.TargetState, plant.InitialScheduler, depthA * nA + depthB * nB + depthC * nC,
-                            plant.UpdateFunction, plant.InitialRestrition(prod), transitions, PI));
+                    //var (depthA, depthB, depthC) = plant.DepthABC;
+                    //var (nA, nB, nC) = prod;
+                    //(var tempo_sequencia, var (seq, time)) = Tools.Timming(() =>
+                    //    Tools.Sequence(plant.InitialState, plant.TargetState, plant.InitialScheduler, depthA * nA + depthB * nB + depthC * nC,
+                    //        plant.UpdateFunction, plant.InitialRestrition(prod), transitions, PI));
 
                     tempos_seq.Add(tempo_sequencia);
                     makespan.Add(time.Last());
 
                     Console.WriteLine($"Makespan: {makespan.Last()} u.t.");
                     Console.WriteLine($"Computou a sequência em {tempos_seq.Last()} s");
+
+                    //foreach (var e in seq)
+                    //{
+                    //    Console.Write($"{e}, \n");
+                    //}
+                    //Console.WriteLine();
                 }
             }
             timer_seq.Stop();

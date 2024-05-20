@@ -34,11 +34,12 @@ namespace ProgramaDaniel
                 //Console.WriteLine(state == PI.First().Key);
                 //var estado = state;
                 //var estadoPi = PI.First().Key;
-
+                var auxa = PI[state];
                 foreach (var pi in PI[state])
                 {
                     if (!sch.Where(sc => !sc.Key.IsControllable && sc.Value < sch[pi]).Any()) // Trata infactibilidades temporais
                     {
+                        var aux = transitions[state];
                         try
                         {
                             trans =
@@ -47,7 +48,7 @@ namespace ProgramaDaniel
                                 .Single(t => t.Trigger == pi);
                             break;
                         }
-                        catch (Exception erro) { Console.WriteLine(erro.Message); }
+                        catch { }
                     }
                 }
 
@@ -87,6 +88,21 @@ namespace ProgramaDaniel
 
             for (var it = 0; it < depth; it++)
             {
+
+                var state_aux = supervisors.Select(s => s.state).ToArray();
+                var m1 = state_aux[0].ToString().ElementAt(0);
+                var r1 = state_aux[0].ToString().ElementAt(2);
+                var e1 = state_aux[0].ToString().ElementAt(4);
+                var m2 = state_aux[1].ToString().ElementAt(0);
+                var e2 = state_aux[1].ToString().ElementAt(4);
+                var m3 = state_aux[2].ToString().ElementAt(0);
+                var e3 = state_aux[2].ToString().ElementAt(4);
+                var m4 = state_aux[3].ToString().ElementAt(0);
+                var e4 = state_aux[3].ToString().ElementAt(4);
+
+                Console.WriteLine($"{events.Count() + 1} - {m1}|{m2}|{m3}|{m4}|{r1}|{e1}|{e2}|{e3}|{e4}");
+
+
                 AbstractEvent e = null;
                 var enabled_events = new HashSet<AbstractEvent>(all_events);
                 var sumByEvent = new Dictionary<AbstractEvent, double>();
@@ -108,7 +124,15 @@ namespace ProgramaDaniel
                     .Where(kv => enabled_events.Contains(kv.Key))
                     .ToDictionary(kv => kv.Key, kv => kv.Value)
                     .OrderByDescending(v => v.Value)
-                    .ThenByDescending(k => k.Key.ToString()).ToList();
+                    .ThenBy(k => k.Key.ToString()).ToList(); // Última ordenação necessária para bater com o monolítico. No caso do SFM, deve ser ThenByDescending. No caso
+                                                             // do Cluster Tool, deve ser thenBy.
+
+
+                foreach (var kv in ordered_events)
+                {
+                    Console.WriteLine(kv.Key.ToString() + ": " + kv.Value.ToString());
+                }
+                Console.WriteLine();
 
                 /////////////////////////////////////////
                 //foreach (var kvp in ordered_events)
@@ -225,6 +249,7 @@ namespace ProgramaDaniel
             }
 
             var final_state = supervisors.Select(s => s.state);
+
             foreach (var states in initial_state.Zip(final_state, (i, f) => (i, f)))
                 if (states.i != states.f)
                 {

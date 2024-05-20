@@ -1544,6 +1544,13 @@ namespace ProgramaDaniel
                 Supervisor = DFA.MonolithicSupervisor(new[] { C1, C2, C3, C4, C5, C6, M1, M2, M3, M4, R1, R2, R3 },
                     new[] { E1, E2, E3, E4, E5, E6, E7, E8, E9, E10 }, true);
 
+                try
+                {
+                    Supervisors = DFA.LocalModularSupervisor(new[] { C1, C2, C3, C4, C5, C6, M1, M2, M3, M4, R1, R2, R3 },
+                    new[] { E1, E2, E3, E4, E5, E6, E7, E8, E9, E10 });
+                }
+                catch (Exception erro) { Console.WriteLine(erro.Message); }
+
                 //var s2int = new Dictionary<AbstractState, int>();
                 ////var consumo = new List<double>();
                 //var k = 0;
@@ -1787,6 +1794,8 @@ namespace ProgramaDaniel
 
                 // Especificações
 
+                s = Enumerable.Range(0, 6).ToDictionary(i => i, i => new ExpandedState(i.ToString(), 0u, i == 0 ? Marking.Marked : Marking.Unmarked));
+
                 var e1 = new DFA(new[]
                 {
                     new Transition(s[0], e["r1_b1"], s[1]),
@@ -1970,6 +1979,8 @@ namespace ProgramaDaniel
                 }, s[0], "R2");
 
                 // Especificações
+
+                s = Enumerable.Range(0, 6).ToDictionary(i => i, i => new ExpandedState(i.ToString(), 0u, i == 0 ? Marking.Marked : Marking.Unmarked));
 
                 var e1 = new DFA(new[]
                 {
