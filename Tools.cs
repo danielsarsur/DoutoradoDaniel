@@ -1,5 +1,6 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.ComponentModel.DataAnnotations;
 using System.Diagnostics;
 using System.Linq;
 using System.Runtime.Serialization;
@@ -68,12 +69,14 @@ namespace ProgramaDaniel
         }
 
         public static Tuple<List<AbstractEvent>, List<float>> SequenceModular(Scheduler sch, int depth, Update update, Restriction res,
-                    List<(Dictionary<AbstractState, Transition[]> transitions, Dictionary<AbstractState, List<(AbstractEvent, double)>> policy, AbstractState state)> supervisors,
+                    List<(Dictionary<AbstractState, Transition[]> transitions, Dictionary<AbstractState, List<(AbstractEvent, double)>> policy, AbstractState state, AbstractState initial_state)> supervisors,
                     HashSet<AbstractEvent> all_events)
         {
             res = new Restriction(res);
 
+            //var initial_state_const = supervisors.Select(s => s.state);
             var initial_state = supervisors.Select(s => s.state);
+            //var initial_state = supervisors.Select(s => s.state.Clone()).ToList();
             var events = new List<AbstractEvent>();
 
             var tempo = 0.0f;
@@ -88,19 +91,20 @@ namespace ProgramaDaniel
 
             for (var it = 0; it < depth; it++)
             {
+                //Console.Write(it+1 + " - ");
 
-                var state_aux = supervisors.Select(s => s.state).ToArray();
-                var m1 = state_aux[0].ToString().ElementAt(0);
-                var r1 = state_aux[0].ToString().ElementAt(2);
-                var e1 = state_aux[0].ToString().ElementAt(4);
-                var m2 = state_aux[1].ToString().ElementAt(0);
-                var e2 = state_aux[1].ToString().ElementAt(4);
-                var m3 = state_aux[2].ToString().ElementAt(0);
-                var e3 = state_aux[2].ToString().ElementAt(4);
-                var m4 = state_aux[3].ToString().ElementAt(0);
-                var e4 = state_aux[3].ToString().ElementAt(4);
+                //var state_aux = supervisors.Select(s => s.state).ToArray();
+                //var m1 = state_aux[0].ToString().ElementAt(0);
+                //var r1 = state_aux[0].ToString().ElementAt(2);
+                //var e1 = state_aux[0].ToString().ElementAt(4);
+                //var m2 = state_aux[1].ToString().ElementAt(0);
+                //var e2 = state_aux[1].ToString().ElementAt(4);
+                //var m3 = state_aux[2].ToString().ElementAt(0);
+                //var e3 = state_aux[2].ToString().ElementAt(4);
+                //var m4 = state_aux[3].ToString().ElementAt(0);
+                //var e4 = state_aux[3].ToString().ElementAt(4);
 
-                Console.WriteLine($"{events.Count() + 1} - {m1}|{m2}|{m3}|{m4}|{r1}|{e1}|{e2}|{e3}|{e4}");
+                //Console.WriteLine($"{events.Count() + 1} - {m1}|{m2}|{m3}|{m4}|{r1}|{e1}|{e2}|{e3}|{e4}");
 
 
                 AbstractEvent e = null;
@@ -112,7 +116,7 @@ namespace ProgramaDaniel
                     enabled_events = enabled_events.Intersect(sup.transitions[sup.state].Select(t => t.Trigger)).ToSet();
 
                 // Soma os valores das políticas de cada supervisor para cada evento
-                foreach (var (transitions, policy, state) in supervisors)
+                foreach (var (transitions, policy, state, init_state) in supervisors)
                     if (policy.TryGetValue(state, out var ev))
                         foreach (var (abstractEvent, value) in ev)
                             if (sumByEvent.TryGetValue(abstractEvent, out var somaAtual))
@@ -124,15 +128,15 @@ namespace ProgramaDaniel
                     .Where(kv => enabled_events.Contains(kv.Key))
                     .ToDictionary(kv => kv.Key, kv => kv.Value)
                     .OrderByDescending(v => v.Value)
-                    .ThenBy(k => k.Key.ToString()).ToList(); // Última ordenação necessária para bater com o monolítico. No caso do SFM, deve ser ThenByDescending. No caso
+                    .ThenByDescending(k => k.Key.ToString()).ToList(); // Última ordenação necessária para bater com o monolítico. No caso do SFM, deve ser ThenByDescending. No caso
                                                              // do Cluster Tool, deve ser thenBy.
 
-
-                foreach (var kv in ordered_events)
-                {
-                    Console.WriteLine(kv.Key.ToString() + ": " + kv.Value.ToString());
-                }
-                Console.WriteLine();
+                var asdasd = 0;
+                //foreach (var kv in ordered_events)
+                //{
+                //    Console.WriteLine(kv.Key.ToString() + ": " + kv.Value.ToString());
+                //}
+                //Console.WriteLine();
 
                 /////////////////////////////////////////
                 //foreach (var kvp in ordered_events)
@@ -231,6 +235,9 @@ namespace ProgramaDaniel
                 if (e == e53)
                     c53++;
                 events.Add(e);
+
+                //Console.WriteLine(e);
+
                 if (e.IsControllable)
                     res[e]--;
                 tempo += sch[e];

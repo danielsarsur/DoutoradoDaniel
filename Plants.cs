@@ -56,7 +56,7 @@ namespace ProgramaDaniel
             Supervisor = DFA.MonolithicSupervisor(new[] { m1, m2 },
                 new[] { e1 }, true);
 
-            //Supervisors = DFA.LocalModularSupervisor(new[] { m1, m2 }, new[] { e1 });
+            Supervisors = DFA.LocalModularSupervisor(new[] { m1, m2 }, new[] { e1 });
         }
 
         public int Depth => 4;
@@ -128,8 +128,6 @@ namespace ProgramaDaniel
                 },
                 s[0], "M1");
 
-            s = new[] { new ExpandedState("0", 0, Marking.Marked), new ExpandedState("1", 0.5, Marking.Unmarked) };
-
             var m2 = new DeterministicFiniteAutomaton(
                 new[]
                 {
@@ -137,8 +135,6 @@ namespace ProgramaDaniel
                     new Transition(s[1], _e[4], s[0])
                 },
                 s[0], "M2");
-
-            s = new[] { new ExpandedState("0", 0, Marking.Marked), new ExpandedState("1", 1, Marking.Unmarked) };
 
             var m3 = new DeterministicFiniteAutomaton(
                 new[]
@@ -168,11 +164,18 @@ namespace ProgramaDaniel
 
             Supervisor = DFA.MonolithicSupervisor(new[] { m1, m2, m3 }, new[] { e1, e2 }, true);
 
-            //Supervisor.showAutomaton();
+            // Divisão das tarefas ativas da Máquina 2 por 2 supervisores modulares locais
+            s = new[] { new ExpandedState("0", 0, Marking.Marked), new ExpandedState("1", 0.5, Marking.Unmarked) };
+
+            m2 = new DeterministicFiniteAutomaton(
+                new[]
+                {
+                    new Transition(s[0], _e[3], s[1]),
+                    new Transition(s[1], _e[4], s[0])
+                },
+                s[0], "M2");
 
             Supervisors = DFA.LocalModularSupervisor(new[] { m1, m2, m3 }, new[] { e1, e2 });
-            //foreach (var sup in Supervisors) sup.showAutomaton();
-            //var aux = 0;
         }
 
         public int Depth => 6;
@@ -245,86 +248,72 @@ namespace ProgramaDaniel
                      new Event(alias.ToString(),
                          alias % 2 == 0 ? Controllability.Uncontrollable : Controllability.Controllable));
 
-            if (File.Exists("SFM.bin"))
-            {
-                Supervisor = Utilidades.DeserializeAutomaton("SFM.bin");
-            }
-            else
-            {
+            var s = Enumerable.Range(0, 6)
+            .ToDictionary(i => i, i =>
+            new ExpandedState(i.ToString(), i == 0 ? 0u : 1u, i == 0 ? Marking.Marked : Marking.Unmarked));
 
-                var s = Enumerable.Range(0, 6)
-               .ToDictionary(i => i,
-                   i => new ExpandedState(i.ToString(), i == 0 ? 0u : 1u, i == 0 ? Marking.Marked : Marking.Unmarked));
-
-                // C1
-
-                var c1 = new DFA(
-                    new[]
-                    {
+            // C1
+            var c1 = new DFA(
+                new[]
+                {
                         new Transition(s[0], _e[11], s[1]),
                         new Transition(s[1], _e[12], s[0])
-                    },
-                    s[0], "C1");
+                },
+                s[0], "C1");
 
-                // C2
-
-                var c2 = new DFA(
-                    new[]
-                    {
+            // C2
+            var c2 = new DFA(
+                new[]
+                {
                         new Transition(s[0], _e[21], s[1]),
                         new Transition(s[1], _e[22], s[0])
-                    },
-                    s[0], "C2");
+                },
+                s[0], "C2");
 
-                // Fresa
-
-                var fresa = new DFA(
-                    new[]
-                    {
+            // Fresa
+            var fresa = new DFA(
+                new[]
+                {
                         new Transition(s[0], _e[41], s[1]),
                         new Transition(s[1], _e[42], s[0])
-                    },
-                    s[0], "Fresa");
+                },
+                s[0], "Fresa");
 
-                // MP
-
-                var mp = new DeterministicFiniteAutomaton(
-                    new[]
-                    {
+            // MP
+            var mp = new DeterministicFiniteAutomaton(
+                new[]
+                {
                         new Transition(s[0], _e[81], s[1]),
                         new Transition(s[1], _e[82], s[0])
-                    },
-                    s[0], "MP");
+                },
+                s[0], "MP");
 
-                // Torno
-
-                var torno = new DeterministicFiniteAutomaton(
-                    new[]
-                    {
+            // Torno
+            var torno = new DeterministicFiniteAutomaton(
+                new[]
+                {
                         new Transition(s[0], _e[51], s[1]),
                         new Transition(s[1], _e[52], s[0]),
                         new Transition(s[0], _e[53], s[2]),
                         new Transition(s[2], _e[54], s[0])
-                    },
-                    s[0], "Torno");
+                },
+                s[0], "Torno");
 
-                // C3
-
-                var c3 = new DeterministicFiniteAutomaton(
-                    new[]
-                    {
+            // C3
+            var c3 = new DeterministicFiniteAutomaton(
+                new[]
+                {
                         new Transition(s[0], _e[71], s[1]),
                         new Transition(s[1], _e[72], s[0]),
                         new Transition(s[0], _e[73], s[2]),
                         new Transition(s[2], _e[74], s[0])
-                    },
-                    s[0], "C3");
+                },
+                s[0], "C3");
 
-                // Robô
-
-                var robot = new DeterministicFiniteAutomaton(
-                    new[]
-                    {
+            // Robô
+            var robot = new DeterministicFiniteAutomaton(
+                new[]
+                {
                         new Transition(s[0], _e[31], s[1]),
                         new Transition(s[1], _e[32], s[0]),
                         new Transition(s[0], _e[33], s[2]),
@@ -335,105 +324,100 @@ namespace ProgramaDaniel
                         new Transition(s[4], _e[38], s[0]),
                         new Transition(s[0], _e[39], s[5]),
                         new Transition(s[5], _e[30], s[0])
-                    },
-                    s[0], "Robot");
+                },
+                s[0], "Robot");
 
-                // MM
-
-                var mm = new DeterministicFiniteAutomaton(
-                    new[]
-                    {
+            // MM
+            var mm = new DeterministicFiniteAutomaton(
+                new[]
+                {
                         new Transition(s[0], _e[61], s[1]),
                         new Transition(s[1], _e[63], s[2]),
                         new Transition(s[1], _e[65], s[3]),
                         new Transition(s[2], _e[64], s[0]),
                         new Transition(s[3], _e[66], s[0])
-                    },
-                    s[0], "MM");
+                },
+                s[0], "MM");
 
-                // Especificações
+            // Especificações
 
-                // E1
+            s = Enumerable.Range(0, 6)
+            .ToDictionary(i => i, i =>
+            new ExpandedState(i.ToString(), 0, i == 0 ? Marking.Marked : Marking.Unmarked));
 
-                var e1 = new DeterministicFiniteAutomaton(
-                    new[]
-                    {
+            // E1
+            var e1 = new DeterministicFiniteAutomaton(
+                new[]
+                {
                         new Transition(s[0], _e[12], s[1]),
                         new Transition(s[1], _e[31], s[0])
-                    },
-                    s[0], "E1");
+                },
+                s[0], "E1");
 
-                // E2
-
-                var e2 = new DeterministicFiniteAutomaton(
-                    new[]
-                    {
+            // E2
+            var e2 = new DeterministicFiniteAutomaton(
+                new[]
+                {
                         new Transition(s[0], _e[22], s[1]),
                         new Transition(s[1], _e[33], s[0])
-                    },
-                    s[0], "E2");
+                },
+                s[0], "E2");
 
-                // E5
-
-                var e5 = new DeterministicFiniteAutomaton(
-                    new[]
-                    {
+            // E5
+            var e5 = new DeterministicFiniteAutomaton(
+                new[]
+                {
                         new Transition(s[0], _e[36], s[1]),
                         new Transition(s[1], _e[61], s[0])
-                    },
-                    s[0], "E5");
+                },
+                s[0], "E5");
 
-                // E6
-
-                var e6 = new DeterministicFiniteAutomaton(
-                    new[]
-                    {
+            // E6
+            var e6 = new DeterministicFiniteAutomaton(
+                new[]
+                {
                         new Transition(s[0], _e[38], s[1]),
                         new Transition(s[1], _e[63], s[0])
-                    },
-                    s[0], "E6");
+                },
+                s[0], "E6");
 
-                // E3
-
-                var e3 = new DeterministicFiniteAutomaton(
-                    new[]
-                    {
+            // E3
+            var e3 = new DeterministicFiniteAutomaton(
+                new[]
+                {
                         new Transition(s[0], _e[32], s[1]),
                         new Transition(s[1], _e[41], s[0]),
                         new Transition(s[0], _e[42], s[2]),
                         new Transition(s[2], _e[35], s[0])
-                    },
-                    s[0], "E3");
+                },
+                s[0], "E3");
 
-                // E7
-
-                var e7 = new DeterministicFiniteAutomaton(
-                    new[]
-                    {
+            // E7
+            var e7 = new DeterministicFiniteAutomaton(
+                new[]
+                {
                         new Transition(s[0], _e[30], s[1]),
                         new Transition(s[1], _e[71], s[0]),
                         new Transition(s[0], _e[74], s[2]),
                         new Transition(s[2], _e[65], s[0])
-                    },
-                    s[0], "E7");
+                },
+                s[0], "E7");
 
-                // E8
-
-                var e8 = new DeterministicFiniteAutomaton(
-                    new[]
-                    {
+            // E8
+            var e8 = new DeterministicFiniteAutomaton(
+                new[]
+                {
                         new Transition(s[0], _e[72], s[1]),
                         new Transition(s[1], _e[81], s[0]),
                         new Transition(s[0], _e[82], s[2]),
                         new Transition(s[2], _e[73], s[0])
-                    },
-                    s[0], "E8");
+                },
+                s[0], "E8");
 
-                // E4
-
-                var e4 = new DeterministicFiniteAutomaton(
-                    new[]
-                    {
+            // E4
+            var e4 = new DeterministicFiniteAutomaton(
+                new[]
+                {
                         new Transition(s[0], _e[34], s[1]),
                         new Transition(s[1], _e[51], s[0]),
                         new Transition(s[1], _e[53], s[0]),
@@ -441,331 +425,19 @@ namespace ProgramaDaniel
                         new Transition(s[2], _e[37], s[0]),
                         new Transition(s[0], _e[54], s[3]),
                         new Transition(s[3], _e[39], s[0])
-                    },
-                s[0], "E4");
-
-                Supervisor = DFA.MonolithicSupervisor(new[] { c1, c2, fresa, torno, robot, mm, c3, mp },
-                    new[] { e1, e2, e3, e4, e5, e6, e7, e8 }, true);
-
-                Utilidades.SerializeAutomaton(Supervisor, "SFM.bin");
-            }
-        }
-
-        public DFA Supervisor { get; }
-
-        public IEnumerable<DFA> Supervisors { get; }
-
-        public int Depth => 44;
-
-        public (int, int) DepthAB => (19, 25);
-
-        public AbstractState InitialState => Supervisor.InitialState;
-
-        public AbstractState TargetState => Supervisor.InitialState;
-
-        public Restriction InitialRestrition(int products)
-        {
-            return new Restriction
-            {
-                {_e[11], (uint) (2*products)},
-                {_e[21], (uint) (2*products)},
-                {_e[31], (uint) (2*products)},
-                {_e[33], (uint) (2*products)},
-                {_e[35], (uint) (2*products)},
-                {_e[37], (uint) (1*products)},
-                {_e[39], (uint) (1*products)},
-                {_e[41], (uint) (2*products)},
-                {_e[51], (uint) (1*products)},
-                {_e[53], (uint) (1*products)},
-                {_e[61], (uint) (2*products)},
-                {_e[63], (uint) (1*products)},
-                {_e[65], (uint) (1*products)},
-                {_e[71], (uint) (1*products)},
-                {_e[73], (uint) (1*products)},
-                {_e[81], (uint) (1*products)}
-            };
-        }
-
-        public Restriction InitialRestrition((int a, int b) produto)
-        {
-            var (prod_a, prod_b) = produto;
-            return new Restriction
-            {
-                {_e[11], (uint) (prod_a + prod_b)},
-                {_e[21], (uint) (prod_a + prod_b)},
-                {_e[31], (uint) (prod_a + prod_b)},
-                {_e[33], (uint) (prod_a + prod_b)},
-                {_e[35], (uint) (prod_a + prod_b)},
-                {_e[37], (uint) prod_a},
-                {_e[39], (uint) prod_b},
-                {_e[41], (uint) (prod_a + prod_b)},
-                {_e[51], (uint) prod_a},
-                {_e[53], (uint) prod_b},
-                {_e[61], (uint) (prod_a + prod_b)},
-                {_e[63], (uint) prod_a},
-                {_e[65], (uint) prod_b},
-                {_e[71], (uint) prod_b},
-                {_e[73], (uint) prod_b},
-                {_e[81], (uint) prod_b}
-            };
-        }
-
-        public Scheduler InitialScheduler =>
-                _e.ToDictionary(kvp => kvp.Value as AbstractEvent,
-                    kvp => kvp.Value.IsControllable ? 0.0f : float.PositiveInfinity);
-
-        public Update UpdateFunction => (old, ev) =>
-        {
-            var sch = old.ToDictionary(kvp => kvp.Key, kvp =>
-            {
-                var v = kvp.Value - old[ev];
-
-                if (kvp.Key.IsControllable) return v < 0 ? 0 : v;
-                if (v < 0) return float.NaN;
-                return v;
-            });
-
-            if (!ev.IsControllable) sch[ev] = float.PositiveInfinity;
-
-            switch (ev.ToString())
-            {
-                case "11":
-                    sch[_e[12]] = 25;
-                    break;
-                case "21":
-                    sch[_e[22]] = 25;
-                    break;
-                case "31":
-                    sch[_e[32]] = 21;
-                    break;
-                case "33":
-                    sch[_e[34]] = 19;
-                    break;
-                case "35":
-                    sch[_e[36]] = 16;
-                    break;
-                case "37":
-                    sch[_e[38]] = 24;
-                    break;
-                case "39":
-                    sch[_e[30]] = 20;
-                    break;
-                case "41":
-                    sch[_e[42]] = 30;
-                    break;
-                case "51":
-                    sch[_e[52]] = 38;
-                    break;
-                case "53":
-                    sch[_e[54]] = 32;
-                    break;
-                case "61":
-                    sch[_e[63]] = 15;
-                    sch[_e[65]] = 15;
-                    break;
-                case "63":
-                    sch[_e[64]] = 25;
-                    break;
-                case "65":
-                    sch[_e[66]] = 25;
-                    break;
-                case "71":
-                    sch[_e[72]] = 25;
-                    break;
-                case "73":
-                    sch[_e[74]] = 25;
-                    break;
-                case "81":
-                    sch[_e[82]] = 24;
-                    break;
-            }
-            return sch;
-        };
-
-        public StochasticUpdate StochasticUpdateFunction => (old, ev, stdDev) =>
-        {
-            var sch = old.ToDictionary(kvp => kvp.Key, kvp =>
-            {
-                var v = kvp.Value - old[ev];
-
-
-                if (kvp.Key.IsControllable) return v < 0 ? 0 : v;
-
-                if (v < 0)
-
-                {
-                    foreach (var s in old)
-                    {
-                        Console.WriteLine(s.Key + " - " + s.Value);
-                    }
-                    Console.WriteLine($"evento:{ev} valor de v para o evento {kvp.Key}: {kvp.Value} - {old[ev]} = {v}");
-
-
-                    return float.NaN;
-
-                }
-
-                return v;
-            });
-
-            if (!ev.IsControllable) sch[ev] = float.PositiveInfinity;
-
-            Random rand = new Random();
-            var u1 = 1.0 - rand.NextDouble();
-            var u2 = 1.0 - rand.NextDouble();
-            var stdNormal = Math.Sqrt(-2.0 * Math.Log(u1)) * Math.Sin(2.0 * Math.PI * u2);
-
-            var NormalSample = 0 + stdDev * stdNormal;
-
-            switch (ev.ToString())
-            {
-                case "11":
-                    sch[_e[12]] = 25 + (float)NormalSample;
-                    break;
-                case "21":
-                    sch[_e[22]] = 25 + (float)NormalSample;
-                    break;
-                case "31":
-                    sch[_e[32]] = 21 + (float)NormalSample;
-                    break;
-                case "33":
-                    sch[_e[34]] = 19 + (float)NormalSample;
-                    break;
-                case "35":
-                    sch[_e[36]] = 16 + (float)NormalSample;
-                    break;
-                case "37":
-                    sch[_e[38]] = 24 + (float)NormalSample;
-                    break;
-                case "39":
-                    sch[_e[30]] = 20 + (float)NormalSample;
-                    break;
-                case "41":
-                    sch[_e[42]] = 30 + (float)NormalSample;
-                    break;
-                case "51":
-                    sch[_e[52]] = 38 + (float)NormalSample;
-                    break;
-                case "53":
-                    sch[_e[54]] = 32 + (float)NormalSample;
-                    break;
-                case "61":
-                    sch[_e[63]] = 15 + (float)NormalSample;
-                    sch[_e[65]] = 15 + (float)NormalSample;
-                    break;
-                case "63":
-                    sch[_e[64]] = 25 + (float)NormalSample;
-                    break;
-                case "65":
-                    sch[_e[66]] = 25 + (float)NormalSample;
-                    break;
-                case "71":
-                    sch[_e[72]] = 25 + (float)NormalSample;
-                    break;
-                case "73":
-                    sch[_e[74]] = 25 + (float)NormalSample;
-                    break;
-                case "81":
-                    sch[_e[82]] = 24 + (float)NormalSample;
-                    break;
-            }
-            return sch;
-        };
-
-    }
-
-    internal class SFMmodular : ISchedulingProblemAB
-    {
-        public readonly Dictionary<int, Event> _e;
-
-        public SFMmodular()
-        {
-            _e = new[]
-             {
-                11, 12, 21, 22, 41,
-                42, 51, 52, 53, 54, 31,
-                32, 33, 34, 35, 36, 37, 38, 39, 30, 61,
-                63, 65, 64, 66, 71, 72, 73, 74, 81, 82
-            }.ToDictionary(alias => alias,
-                 alias =>
-                     new Event(alias.ToString(),
-                         alias % 2 == 0 ? Controllability.Uncontrollable : Controllability.Controllable));
-
-            var s = Enumerable.Range(0, 6)
-           .ToDictionary(i => i,
-               i => new ExpandedState(i.ToString(), i == 0 ? 0u : 1u, i == 0 ? Marking.Marked : Marking.Unmarked));
-
-            // C1
-
-            var c1 = new DFA(
-                new[]
-                {
-                    new Transition(s[0], _e[11], s[1]),
-                    new Transition(s[1], _e[12], s[0])
                 },
-                s[0], "C1");
+            s[0], "E4");
 
-            // C2
+            Supervisor = DFA.MonolithicSupervisor(new[] { c1, c2, fresa, torno, robot, mm, c3, mp },
+                new[] { e1, e2, e3, e4, e5, e6, e7, e8 }, true);
 
-            var c2 = new DFA(
-                new[]
-                {
-                    new Transition(s[0], _e[21], s[1]),
-                    new Transition(s[1], _e[22], s[0])
-                },
-                s[0], "C2");
 
-            // Fresa
-
-            var fresa = new DFA(
-                new[]
-                {
-                    new Transition(s[0], _e[41], s[1]),
-                    new Transition(s[1], _e[42], s[0])
-                },
-                s[0], "Fresa");
-
-            // MP
-
-            var mp = new DeterministicFiniteAutomaton(
-                new[]
-                {
-                    new Transition(s[0], _e[81], s[1]),
-                    new Transition(s[1], _e[82], s[0])
-                },
-                s[0], "MP");
-
-            // Torno
-
-            var torno = new DeterministicFiniteAutomaton(
-                new[]
-                {
-                    new Transition(s[0], _e[51], s[1]),
-                    new Transition(s[1], _e[52], s[0]),
-                    new Transition(s[0], _e[53], s[2]),
-                    new Transition(s[2], _e[54], s[0])
-                },
-                s[0], "Torno");
-
-            // C3
-
-            var c3 = new DeterministicFiniteAutomaton(
-                new[]
-                {
-                    new Transition(s[0], _e[71], s[1]),
-                    new Transition(s[1], _e[72], s[0]),
-                    new Transition(s[0], _e[73], s[2]),
-                    new Transition(s[2], _e[74], s[0])
-                },
-                s[0], "C3");
-
-            // Robô
-
+            // Divisão das tarefas ativas do robô por 7 supervisores modulares locais
             s = Enumerable.Range(0, 6)
-           .ToDictionary(i => i,
-               i => new ExpandedState(i.ToString(), i == 0 ? 0u : 1 / 7, i == 0 ? Marking.Marked : Marking.Unmarked));
+                .ToDictionary(i => i, i =>
+                new ExpandedState(i.ToString(), i == 0 ? 0u : 1 / 7, i == 0 ? Marking.Marked : Marking.Unmarked));
 
-            var robot = new DeterministicFiniteAutomaton(
+            robot = new DeterministicFiniteAutomaton(
                 new[]
                 {
                     new Transition(s[0], _e[31], s[1]),
@@ -781,13 +453,12 @@ namespace ProgramaDaniel
                 },
                 s[0], "Robot");
 
-            // MM
-
+            // Divisão das tarefas ativas da Máquian de Montagem por 3 supervisores modulares locais
             s = Enumerable.Range(0, 6)
            .ToDictionary(i => i,
                i => new ExpandedState(i.ToString(), i == 0 ? 0u : 1 / 3, i == 0 ? Marking.Marked : Marking.Unmarked));
 
-            var mm = new DeterministicFiniteAutomaton(
+            mm = new DeterministicFiniteAutomaton(
                 new[]
                 {
                     new Transition(s[0], _e[61], s[1]),
@@ -798,113 +469,9 @@ namespace ProgramaDaniel
                 },
                 s[0], "MM");
 
-            // Especificações
+            var e7_e8 = DFA.ParallelComposition(e7, e8);
 
-            s = Enumerable.Range(0, 6)
-                .ToDictionary(i => i,
-                    i => new ExpandedState(i.ToString(), 0, i == 0 ? Marking.Marked : Marking.Unmarked));
-
-            // E1
-
-            var e1 = new DeterministicFiniteAutomaton(
-                new[]
-                {
-                    new Transition(s[0], _e[12], s[1]),
-                    new Transition(s[1], _e[31], s[0])
-                },
-                s[0], "E1");
-
-            // E2
-
-            var e2 = new DeterministicFiniteAutomaton(
-                new[]
-                {
-                    new Transition(s[0], _e[22], s[1]),
-                    new Transition(s[1], _e[33], s[0])
-                },
-                s[0], "E2");
-
-            // E5
-
-            var e5 = new DeterministicFiniteAutomaton(
-                new[]
-                {
-                    new Transition(s[0], _e[36], s[1]),
-                    new Transition(s[1], _e[61], s[0])
-                },
-                s[0], "E5");
-
-            // E6
-
-            var e6 = new DeterministicFiniteAutomaton(
-                new[]
-                {
-                    new Transition(s[0], _e[38], s[1]),
-                    new Transition(s[1], _e[63], s[0])
-                },
-                s[0], "E6");
-
-            // E3
-
-            var e3 = new DeterministicFiniteAutomaton(
-                new[]
-                {
-                    new Transition(s[0], _e[32], s[1]),
-                    new Transition(s[1], _e[41], s[0]),
-                    new Transition(s[0], _e[42], s[2]),
-                    new Transition(s[2], _e[35], s[0])
-                },
-                s[0], "E3");
-
-            // E7
-
-            var e7 = new DeterministicFiniteAutomaton(
-                new[]
-                {
-                    new Transition(s[0], _e[30], s[1]),
-                    new Transition(s[1], _e[71], s[0]),
-                    new Transition(s[0], _e[74], s[2]),
-                    new Transition(s[2], _e[65], s[0])
-                },
-                s[0], "E7");
-
-            // E8
-
-            var e8 = new DeterministicFiniteAutomaton(
-                new[]
-                {
-                    new Transition(s[0], _e[72], s[1]),
-                    new Transition(s[1], _e[81], s[0]),
-                    new Transition(s[0], _e[82], s[2]),
-                    new Transition(s[2], _e[73], s[0])
-                },
-                s[0], "E8");
-
-            // E4
-
-            var e4 = new DeterministicFiniteAutomaton(
-                new[]
-                {
-                    new Transition(s[0], _e[34], s[1]),
-                    new Transition(s[1], _e[51], s[0]),
-                    new Transition(s[1], _e[53], s[0]),
-                    new Transition(s[0], _e[52], s[2]),
-                    new Transition(s[2], _e[37], s[0]),
-                    new Transition(s[0], _e[54], s[3]),
-                    new Transition(s[3], _e[39], s[0])
-                },
-            s[0], "E4");
-
-            //Supervisor = DFA.MonolithicSupervisor(new[] { c1, c2, fresa, torno, robot, mm, c3, mp },
-            //  new[] { e1, e2, e3, e4, e5, e6, e7, e8 }, true);
-
-            var e7_e8 = e7.ParallelCompositionWith(e8);
             Supervisors = DFA.LocalModularSupervisor(new[] { c1, c2, fresa, torno, robot, mm, c3, mp }, new[] { e1, e2, e3, e4, e5, e6, e7_e8 });
-            //foreach (var sup in Supervisors) sup.showAutomaton();
-            //var aux = 0;
-
-            //Utilidades.SerializeAutomaton(Supervisor, "SFM.bin");
-
         }
 
         public DFA Supervisor { get; }
@@ -1048,7 +615,6 @@ namespace ProgramaDaniel
                 if (kvp.Key.IsControllable) return v < 0 ? 0 : v;
 
                 if (v < 0)
-
                 {
                     foreach (var s in old)
                     {
@@ -1056,9 +622,7 @@ namespace ProgramaDaniel
                     }
                     Console.WriteLine($"evento:{ev} valor de v para o evento {kvp.Key}: {kvp.Value} - {old[ev]} = {v}");
 
-
                     return float.NaN;
-
                 }
 
                 return v;
@@ -1127,7 +691,6 @@ namespace ProgramaDaniel
             }
             return sch;
         };
-
     }
 
     public class ITL : ISchedulingProblem
@@ -1143,40 +706,30 @@ namespace ProgramaDaniel
 
             var m1 = new DFA(new[] { new Transition(s[0], _e[1], s[1]), new Transition(s[1], _e[2], s[0]) }, s[0], "M1");
 
-            var m2 = new DFA(
-                new[] { new Transition(s[0], _e[3], s[1]), new Transition(s[1], _e[4], s[0]) }, s[0], "M2");
+            var m2 = new DFA(new[] { new Transition(s[0], _e[3], s[1]), new Transition(s[1], _e[4], s[0]) }, s[0], "M2");
 
-            var m3 = new DFA(
-                new[] { new Transition(s[0], _e[5], s[1]), new Transition(s[1], _e[6], s[0]) }, s[0], "M3");
+            var m3 = new DFA(new[] { new Transition(s[0], _e[5], s[1]), new Transition(s[1], _e[6], s[0]) }, s[0], "M3");
 
-            var m4 = new DFA(
-                new[] { new Transition(s[0], _e[7], s[1]), new Transition(s[1], _e[8], s[0]) }, s[0], "M4");
+            var m4 = new DFA(new[] { new Transition(s[0], _e[7], s[1]), new Transition(s[1], _e[8], s[0]) }, s[0], "M4");
 
-            var m5 = new DFA(
-                new[] { new Transition(s[0], _e[9], s[1]), new Transition(s[1], _e[10], s[0]) }, s[0], "M5");
+            var m5 = new DFA(new[] { new Transition(s[0], _e[9], s[1]), new Transition(s[1], _e[10], s[0]) }, s[0], "M5");
 
-            var m6 = new DFA(
-                new[] { new Transition(s[0], _e[11], s[1]), new Transition(s[1], _e[12], s[0]) }, s[0], "M6");
+            var m6 = new DFA(new[] { new Transition(s[0], _e[11], s[1]), new Transition(s[1], _e[12], s[0]) }, s[0], "M6");
 
             s = Enumerable.Range(0, 4)
                 .Select(i => new ExpandedState(i.ToString(), 0, i == 0 ? Marking.Marked : Marking.Unmarked)).ToArray();
 
-            var e1 = new DFA(
-                new[] { new Transition(s[0], _e[2], s[1]), new Transition(s[1], _e[3], s[0]) }, s[0], "E1");
+            var e1 = new DFA(new[] { new Transition(s[0], _e[2], s[1]), new Transition(s[1], _e[3], s[0]) }, s[0], "E1");
 
-            var e2 = new DFA(
-                new[] { new Transition(s[0], _e[6], s[1]), new Transition(s[1], _e[7], s[0]) }, s[0], "E2");
+            var e2 = new DFA( new[] { new Transition(s[0], _e[6], s[1]), new Transition(s[1], _e[7], s[0]) }, s[0], "E2");
 
-            var e3 = new DFA(
-                new[]
-                {
+            var e3 = new DFA(new[]{
                     new Transition(s[0], _e[4], s[1]), new Transition(s[1], _e[8], s[2]),
                     new Transition(s[0], _e[8], s[3]), new Transition(s[3], _e[4], s[2]),
                     new Transition(s[2], _e[9], s[0])
                 }, s[0], "E3");
 
-            var e4 = new DFA(
-                new[] { new Transition(s[0], _e[10], s[1]), new Transition(s[1], _e[11], s[0]) }, s[0], "E4");
+            var e4 = new DFA(new[] { new Transition(s[0], _e[10], s[1]), new Transition(s[1], _e[11], s[0]) }, s[0], "E4");
 
             Supervisor = DFA.MonolithicSupervisor(new[] { m1, m2, m3, m4, m5, m6 }, new[] { e1, e2, e3, e4 }, true);
 
@@ -1185,14 +738,26 @@ namespace ProgramaDaniel
             Transitions = Supervisor.Transitions.GroupBy(t => t.Origin)
                 .ToDictionary(g => g.Key, g => g.ToDictionary(t => t.Trigger, t => t.Destination));
 
-            try { Supervisors = DFA.LocalModularSupervisor(new[] { m1, m2, m3, m4, m5, m6 }, new[] { e1, e2, e3, e4 }); }
-            catch (Exception erro) { Console.WriteLine(erro.Message); }
+            // Divisão das tarefas ativas das máquina 2, 4 e 5 por 2 supervisores modulares locais
+            s = new[] { new ExpandedState("I", 0, Marking.Marked), new ExpandedState("W", 0.5, Marking.Unmarked) };
 
+            m2 = new DFA(new[] { new Transition(s[0], _e[3], s[1]), new Transition(s[1], _e[4], s[0]) }, s[0], "M2");
+
+            m4 = new DFA(new[] { new Transition(s[0], _e[7], s[1]), new Transition(s[1], _e[8], s[0]) }, s[0], "M4");
+
+            m5 = new DFA(new[] { new Transition(s[0], _e[9], s[1]), new Transition(s[1], _e[10], s[0]) }, s[0], "M5");
+
+            Supervisors = DFA.LocalModularSupervisor(new[] { m1, m2, m3, m4, m5, m6 }, new[] { e1, e2, e3, e4 });
         }
+
         public DFA Supervisor { get; }
+
         public IEnumerable<DFA> Supervisors { get; }
+
         public IEnumerable<AbstractEvent> Events { get; }
+
         public Dictionary<AbstractState, Dictionary<AbstractEvent, AbstractState>> Transitions { get; }
+
         public int Depth => 12;
 
         public Scheduler InitialScheduler =>
@@ -1200,6 +765,7 @@ namespace ProgramaDaniel
                 kvp => kvp.Value.IsControllable ? 0.0f : float.PositiveInfinity);
 
         public AbstractState InitialState => Supervisor.InitialState;
+
         public AbstractState TargetState => Supervisor.InitialState;
 
         public Update UpdateFunction => (old, ev) =>
@@ -1266,7 +832,7 @@ namespace ProgramaDaniel
             //    {1, new PowerState("1", 100, Marking.Unmarked)}
             //};
 
-            if (File.Exists("EZPELETA*******.bin"))
+            if (File.Exists("EZPELETA.bin"))
             {
                 Console.WriteLine("Carregando supervisor");
                 Supervisor = Utilidades.DeserializeAutomaton("EZPELETA.bin");
@@ -1439,6 +1005,8 @@ namespace ProgramaDaniel
                 //    {5, new PowerState("5", 000, Marking.Unmarked)}
                 //};
 
+                // Especificações
+
                 s = new[] {
                 new ExpandedState("0", 0, Marking.Marked),
                 new ExpandedState("1", 0, Marking.Unmarked),
@@ -1447,8 +1015,6 @@ namespace ProgramaDaniel
                 new ExpandedState("4", 0, Marking.Unmarked),
                 new ExpandedState("5", 0, Marking.Unmarked)
                 };
-
-                // Especificações
 
                 // Buffer 1
                 var E1 = new DFA(new[]
@@ -1830,13 +1396,26 @@ namespace ProgramaDaniel
 
                 Supervisor = DFA.MonolithicSupervisor(new[] { m1, m2, m3, m4, r1 }, new[] { e1, e2, e3, e4 }, true);
 
-                try { Supervisors = DFA.LocalModularSupervisor(new[] { m1, m2, m3, m4, r1 }, new[] { e1, e2, e3, e4 }); }
-                catch (Exception erro) { Console.WriteLine(erro.Message); }
+                // Divisão das tarefas ativas do robô por 4 supervisores modulares locais
+                s = Enumerable.Range(0, 6).ToDictionary(i => i, i => new ExpandedState(i.ToString(), i == 0 ? 0 : 1 / 4.0, i == 0 ? Marking.Marked : Marking.Unmarked));
+
+                r1 = new DFA(new[]
+                {
+                    new Transition(s[0], e["r1_a1"], s[1]),
+                    new Transition(s[1], e["r1_b1"], s[0]),
+                    new Transition(s[0], e["r1_a2"], s[2]),
+                    new Transition(s[2], e["r1_b2"], s[0]),
+                    new Transition(s[0], e["r1_a3"], s[3]),
+                    new Transition(s[3], e["r1_b3"], s[0]),
+                    new Transition(s[0], e["r1_a4"], s[4]),
+                    new Transition(s[4], e["r1_b4"], s[0]),
+                    new Transition(s[0], e["r1_a5"], s[5]),
+                    new Transition(s[5], e["r1_b5"], s[0])
+                }, s[0], "R1");
+
+                Supervisors = DFA.LocalModularSupervisor(new[] { m1, m2, m3, m4, r1 }, new[] { e1, e2, e3, e4 });
             }
-            catch (Exception erro)
-            {
-                Console.WriteLine("Erro 1: " + erro.Message);
-            }
+            catch (Exception erro) { Console.WriteLine(erro.Message); }
         }
 
         public DFA Supervisor { get; }
@@ -1851,7 +1430,7 @@ namespace ProgramaDaniel
 
         public Restriction InitialRestrition(int products)
         {
-            return e.Values.ToDictionary(a => (AbstractEvent)a, a => (uint)products);
+            return e.Values.Where(ev => ev.IsControllable).ToDictionary(a => (AbstractEvent)a, a => (uint)products);
         }
 
         public Scheduler InitialScheduler =>
@@ -2022,13 +1601,30 @@ namespace ProgramaDaniel
                     new Transition(s[2], e["r1_a4"], s[0])
                 }, s[0], "E5");
 
-                //foreach (var a in new[] { e1, e2, e3, e4, e5 })
-                //    a.drawLatexFigure(a.Name, true);
+                //foreach (var a in new[] { m1, m2, m3, m4, r1, r2, e1, e2, e3, e4, e5 })
+                //    a.showAutomaton();
+
+                var e234 = DFA.ParallelComposition(e2, e3, e4);
 
 
                 Supervisor = DFA.MonolithicSupervisor(new[] { m1, m2, m3, m4, r1, r2 }, new[] { e1, e2, e3, e4, e5 }, true);
 
-                try { Supervisors = DFA.LocalModularSupervisor(new[] { m1, m2, m3, m4, r1, r2 }, new[] { e1, e2, e3, e4, e5 }); }
+                // Divisão das tarefas ativas do robô por 3 supervisores modulares locais
+                s = Enumerable.Range(0, 6).ToDictionary(i => i, i => new ExpandedState(i.ToString(), i == 0 ? 0 : 1 / 3.0, i == 0 ? Marking.Marked : Marking.Unmarked));
+
+                r1 = new DFA(new[]
+                {
+                    new Transition(s[0], e["r1_a1"], s[1]),
+                    new Transition(s[1], e["r1_b1"], s[0]),
+                    new Transition(s[0], e["r1_a2"], s[2]),
+                    new Transition(s[2], e["r1_b2"], s[0]),
+                    new Transition(s[0], e["r1_a3"], s[3]),
+                    new Transition(s[3], e["r1_b3"], s[0]),
+                    new Transition(s[0], e["r1_a4"], s[4]),
+                    new Transition(s[4], e["r1_b4"], s[0])
+                }, s[0], "R1");
+
+                try { Supervisors = DFA.LocalModularSupervisor(new[] { m1, m2, m3, m4, r1, r2 }, new[] { e1, e234, e5 }); }
                 catch (Exception erro) { Console.WriteLine(erro.Message); }
             }
             catch (Exception erro)

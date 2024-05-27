@@ -267,10 +267,10 @@ namespace ProgramaDaniel
                     }
                     lista.Add((evento, soma));
                 }
+                
                 // Ordena os possíveis eventos pela ordem descrescente de valor e, em seguida, em ordem descrescente de evento (para o SFM) ou ordem crescente para priorizar
                 // os eventos do início.
-
-                PI[kvp.Key] = lista.OrderByDescending(p => p.Item2).ThenBy(p => p.Item1.IsControllable).ThenBy(p => p.Item1.ToString()).ToList();
+                PI[kvp.Key] = lista.OrderByDescending(p => p.Item2).ThenBy(p => p.Item1.IsControllable).ThenByDescending(p => p.Item1.ToString()).ToList();
             }
             return PI;
         }

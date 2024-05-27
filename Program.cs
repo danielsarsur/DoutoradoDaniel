@@ -24,7 +24,7 @@ namespace ProgramaDaniel
                 //ISchedulingProblem plant = new ITL();
                 ISchedulingProblem plant = new CT1R();
                 //ISchedulingProblem plant = new CT2R();
-                //ISchedulingProblemAB plant = new SFMmodular();
+                //ISchedulingProblemAB plant = new SFM();
                 //ISchedulingProblemABC plant = new EZPELETA();
 
                 var tempo_sup = timer_sup.ElapsedMilliseconds; timer_sup.Stop();
@@ -63,7 +63,7 @@ namespace ProgramaDaniel
 
             var PI_vector = new List<Dictionary<AbstractState, List<(AbstractEvent, double)>>> { };
             var transitions_vector = new List<Dictionary<AbstractState, Transition[]>> { };
-            var supervisors = new List<(Dictionary<AbstractState, Transition[]> transitions, Dictionary<AbstractState, List<(AbstractEvent, double)>> PI, AbstractState state)> { };
+            var supervisors = new List<(Dictionary<AbstractState, Transition[]> transitions, Dictionary<AbstractState, List<(AbstractEvent, double)>> PI, AbstractState state, AbstractState initial_state)> { };
 
             foreach (var s in plant.Supervisors)
             {
@@ -98,7 +98,7 @@ namespace ProgramaDaniel
 
                 Console.WriteLine($"Calculou a política em {tempo_politica} s");
 
-                supervisors.Add((transitions: transitions, PI: PI_value, state: sup.InitialState));
+                supervisors.Add((transitions: transitions, PI: PI_value, state: sup.InitialState, initial_state: sup.InitialState));
 
                 //Console.WriteLine(s.Name);
                 //System.IO.File.AppendAllText("politica.txt", $"{s.Name}\n");
@@ -114,7 +114,7 @@ namespace ProgramaDaniel
             for (var i = 0; i < 1; i++)
             {
                 //var products = new[] { (1000, 1000) }
-                var products = new[] { 3 };
+                var products = new[] { 1,2,3,4,5,10,100,1000 };
                 foreach (var prod in products)
                 {
                     Console.WriteLine("\nLote: " + prod);
@@ -138,9 +138,7 @@ namespace ProgramaDaniel
                     Console.WriteLine($"Computou a sequência em {tempo_seq.Last()} s");
 
                     //foreach (var e in seq)
-                    //{
                     //    Console.Write($"{e}, \n");
-                    //}
                     //Console.WriteLine();
                 }
             }
@@ -165,7 +163,7 @@ namespace ProgramaDaniel
             //{
             //    (var tempo_pi, PI) = Tools.Timming(() =>
             //        Tools.DeserializePolicy("Politica_Ezpeleta_mono.bin"));
-                
+
             //    Console.WriteLine($"Importou a política em {tempo_pi} s");
             //}
             //else
@@ -200,6 +198,7 @@ namespace ProgramaDaniel
             //}
 
             //Tools.print_politica(PI_value);
+            
             Stopwatch timer_seq = new Stopwatch(); timer_seq.Start();
             List<double> tempos_seq = new List<double> { };
             List<float> makespan = new List<float> { };
@@ -207,7 +206,7 @@ namespace ProgramaDaniel
             for (var i = 0; i < 1; i++)
             {
                 //var products = new[] { (100, 100, 100), (150, 75, 75) };
-                var products = new[] { 3 };
+                var products = new[] { 1, 2, 3, 4, 5, 10, 100, 1000 };
                 foreach (var prod in products)
                 {
                     Console.WriteLine("\nLote: " + prod);
@@ -221,7 +220,7 @@ namespace ProgramaDaniel
                     //    Tools.Sequence(plant.InitialState, plant.TargetState, plant.InitialScheduler, plant.DepthAB.Item1 * prod.Item1 + plant.DepthAB.Item2 * prod.Item2,
                     //        plant.UpdateFunction, plant.InitialRestrition(prod), transitions, PI));
 
-                    // SF, CT
+                    //// SF, CT
                     (var tempo_sequencia, var (seq, time)) = Tools.Timming(() =>
                         Tools.Sequence(plant.InitialState, plant.TargetState, plant.InitialScheduler, plant.Depth * prod,
                             plant.UpdateFunction, plant.InitialRestrition(prod), transitions, PI));
