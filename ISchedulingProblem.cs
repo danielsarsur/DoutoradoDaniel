@@ -1,6 +1,6 @@
 ﻿using System;
-using System.Linq;
 using System.Collections.Generic;
+using System.Linq;
 using UltraDES;
 
 namespace ProgramaDaniel
@@ -32,24 +32,24 @@ namespace ProgramaDaniel
         Dictionary<AbstractEvent, uint> InitialRestrition((int a, int b, int c) produto);
     }
 
-    public static class Extensions
-    {
-        public static double ActiveTasks(this AbstractState state)
-        {
-            if (state is AbstractCompoundState)
-                return (double)(state as AbstractCompoundState).S.OfType<ExpandedState>().Sum(s => s.Tasks);
-            if (state is ExpandedState)
-                return (state as ExpandedState).Tasks;
-            return 0;
-        }
+    //public static class Extensions
+    //{
+    //    public static double ActiveTasks(this AbstractState state)
+    //    {
+    //        if (state is AbstractCompoundState)
+    //            return (double)(state as AbstractCompoundState).S.OfType<ExpandedState>().Sum(s => s.Tasks);
+    //        if (state is ExpandedState)
+    //            return (state as ExpandedState).Tasks;
+    //        return 0;
+    //    }
 
-        public static uint BufferCount(this AbstractState state)
-        {
-            if (state is AbstractCompoundState)
-                return (uint)(state as AbstractCompoundState).S.OfType<ExpandedState>().Sum(s => s.Buffer);
-            if (state is ExpandedState)
-                return (state as ExpandedState).Buffer;
-            return 0;
-        }
-    }
+    //    public static uint BufferCount(this AbstractState state)
+    //    {
+    //        if (state is AbstractCompoundState)
+    //            return (uint)(state as AbstractCompoundState).S.OfType<ExpandedState>().Sum(s => s.Buffer);
+    //        if (state is ExpandedState)
+    //            return (state as ExpandedState).Buffer;
+    //        return 0;
+    //    }
+    //}
 }

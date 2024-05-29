@@ -1,8 +1,10 @@
-﻿using System;
+﻿using PlanningDES;
+using System;
 using System.Collections.Generic;
 using System.Diagnostics;
 using System.Linq;
 using UltraDES;
+//using PlanningDES;
 
 namespace ProgramaDaniel
 {
@@ -95,34 +97,36 @@ namespace ProgramaDaniel
         }
 
         public static Dictionary<AbstractState, KeyValuePair<(AbstractState, AbstractEvent), List<(AbstractState, float)>>[]> TransitionProbability
-            (Dictionary<AbstractState, Transition[]> transitions)
+            (Dictionary<AbstractState, Dictionary<AbstractEvent, AbstractState>> transitions)
         {
             var P = new Dictionary<(AbstractState, AbstractEvent), List<(AbstractState, float)>>();
 
             foreach (var transition in transitions)
             {
-                var quant_nao_controlaveis = (float)transition.Value.Where(t => !t.IsControllableTransition).Count();
+                var quant_nao_controlaveis = (float)transition.Value.Keys.Where(t => !t.IsControllable).Count();
+                
+                var origin = transition.Key;
 
-                foreach (var t in transition.Value)
+                foreach ((var trigger, var destination) in transition.Value)
                 {
-                    P.Add((t.Origin, t.Trigger), new List<(AbstractState, float)> { });
+                    P.Add((origin, trigger), new List<(AbstractState, float)> { });
 
-                    if (t.IsControllableTransition)
+                    if (trigger.IsControllable)
                     {
-                        P[(t.Origin, t.Trigger)].Add((t.Destination, 1.0f));
+                        P[(origin, trigger)].Add((destination, 1.0f));
                     }
                     else
                     {
                         var p = 1 / quant_nao_controlaveis;
-                        P[(t.Origin, t.Trigger)].Add((t.Destination, p));
+                        P[(origin, trigger)].Add((destination, p));
 
-                        var destinos = transitions[t.Origin].Where(tt => !tt.IsControllableTransition && tt.Trigger != t.Trigger).ToList();
+                        var destinos = transitions[origin].Where(t => !t.Key.IsControllable && t.Key != trigger).ToList();
                         if (destinos.Any())
                         {
                             foreach (var dest in destinos)
                             {
                                 p = 1 / quant_nao_controlaveis;
-                                P[(t.Origin, t.Trigger)].Add((dest.Destination, p));
+                                P[(origin, trigger)].Add((dest.Value, p));
                             }
                         }
                     }
@@ -151,11 +155,15 @@ namespace ProgramaDaniel
                         var soma = 0.0;
                         var origem = estado_acao.Key.Item1;
                         var evento = estado_acao.Key.Item2;
+                        var aux = 0;
                         foreach (var destino_prob in estado_acao.Value)
                         {
                             var destino = destino_prob.Item1;
                             var prob = destino_prob.Item2;
+                            double aaaaa = destino.ActiveTasks();
+                            double aaa = destino.ActiveTasks();
                             soma += (prob * (destino.ActiveTasks() + (gamma * V_anterior[destino])));
+                            aux = 1;
                         }
                         if (soma > v_max) v_max = soma;
                     }
@@ -207,42 +215,42 @@ namespace ProgramaDaniel
             return V;
         }
 
-        public static Dictionary<AbstractState, float> ValueIterationBuffer
-            (List<AbstractState> S, Dictionary<AbstractState, KeyValuePair<(AbstractState, AbstractEvent), List<(AbstractState, float)>>[]> P, float gamma, float threshold)
-        {
-            Dictionary<AbstractState, float> V = S.ToDictionary(key => key, value => 0.0f);
+        //public static Dictionary<AbstractState, float> ValueIterationBuffer
+        //    (List<AbstractState> S, Dictionary<AbstractState, KeyValuePair<(AbstractState, AbstractEvent), List<(AbstractState, float)>>[]> P, float gamma, float threshold)
+        //{
+        //    Dictionary<AbstractState, float> V = S.ToDictionary(key => key, value => 0.0f);
 
-            var V_anterior = new Dictionary<AbstractState, float>(V);
-            var it = 0;
+        //    var V_anterior = new Dictionary<AbstractState, float>(V);
+        //    var it = 0;
 
-            do
-            {
-                V_anterior = new Dictionary<AbstractState, float>(V);
-                foreach (var kvp in P)
-                {
-                    var v_max = 0.0f;
-                    foreach (var estado_acao in kvp.Value)
-                    {
-                        var soma = 0.0f;
-                        var origem = estado_acao.Key.Item1;
-                        var evento = estado_acao.Key.Item2;
-                        foreach (var destino_prob in estado_acao.Value)
-                        {
-                            var destino = destino_prob.Item1;
-                            var prob = destino_prob.Item2;
-                            soma += prob * (destino.BufferCount() + (gamma * V_anterior[destino]));
-                        }
-                        if (soma > v_max) v_max = soma;
-                    }
-                    V[kvp.Key] = v_max;
-                }
-                it++;
-            } while (Math.Abs(V.Sum(kvp => kvp.Value) - V_anterior.Sum(kvp => kvp.Value)) > threshold);
+        //    do
+        //    {
+        //        V_anterior = new Dictionary<AbstractState, float>(V);
+        //        foreach (var kvp in P)
+        //        {
+        //            var v_max = 0.0f;
+        //            foreach (var estado_acao in kvp.Value)
+        //            {
+        //                var soma = 0.0f;
+        //                var origem = estado_acao.Key.Item1;
+        //                var evento = estado_acao.Key.Item2;
+        //                foreach (var destino_prob in estado_acao.Value)
+        //                {
+        //                    var destino = destino_prob.Item1;
+        //                    var prob = destino_prob.Item2;
+        //                    soma += prob * (destino.BufferCount() + (gamma * V_anterior[destino]));
+        //                }
+        //                if (soma > v_max) v_max = soma;
+        //            }
+        //            V[kvp.Key] = v_max;
+        //        }
+        //        it++;
+        //    } while (Math.Abs(V.Sum(kvp => kvp.Value) - V_anterior.Sum(kvp => kvp.Value)) > threshold);
 
-            Console.WriteLine($"Iterações: {it}");
+        //    Console.WriteLine($"Iterações: {it}");
 
-            return V;
-        }
+        //    return V;
+        //}
 
         public static Dictionary<AbstractState, List<(AbstractEvent, double)>> PolicyParallelismReward
             (List<AbstractState> S, Dictionary<AbstractState, KeyValuePair<(AbstractState, AbstractEvent), List<(AbstractState, float)>>[]> P,

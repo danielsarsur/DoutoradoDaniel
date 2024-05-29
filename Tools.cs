@@ -7,586 +7,601 @@ using System.Runtime.Serialization;
 using System.Runtime.Serialization.Formatters.Binary;
 using System.Security.Cryptography;
 using UltraDES;
-using Restriction = System.Collections.Generic.Dictionary<UltraDES.AbstractEvent, uint>;
-using Scheduler = System.Collections.Generic.Dictionary<UltraDES.AbstractEvent, float>;
+using PlanningDES;
+//using Restriction = System.Collections.Generic.Dictionary<UltraDES.AbstractEvent, uint>;
+//using Scheduler = System.Collections.Generic.Dictionary<UltraDES.AbstractEvent, float>;
+//using Update = System.Func<System.Collections.Generic.Dictionary<UltraDES.AbstractEvent, float>, UltraDES.AbstractEvent, System.Collections.Generic.Dictionary<UltraDES.AbstractEvent, float>>;
+using Restriction = PlanningDES.Restriction;
+using Scheduler = PlanningDES.Scheduler;
 using Update = System.Func<System.Collections.Generic.Dictionary<UltraDES.AbstractEvent, float>, UltraDES.AbstractEvent, System.Collections.Generic.Dictionary<UltraDES.AbstractEvent, float>>;
+
 
 
 namespace ProgramaDaniel
 {
     public static class Tools
     {
-        public static Tuple<List<AbstractEvent>, List<float>> Sequence(AbstractState initial, AbstractState destination, Scheduler sch, int depth,
-                    Update update, Restriction res, Dictionary<AbstractState, Transition[]> transitions, Dictionary<AbstractState, List<AbstractEvent>> PI)
+        public static Tuple<List<AbstractEvent>, List<float>> Sequence(PlanningDES.ISchedulingProblem problem, int products, Dictionary<AbstractState, List<AbstractEvent>> PI)
         {
-            res = new Restriction(res);
+            var state = problem.InitialState;
+            var destination = problem.TargetState;
+            var depth = products * problem.Depth;
+            var res = problem.InitialRestrition(products);
+            var sch = problem.InitialScheduler;
+            var transitions = problem.Transitions;
+            var uncontrollables = problem.Events.Where(e => !e.IsControllable).ToSet();
 
-            var state = initial;
+            AbstractEvent e = null;
+            AbstractState dest = null;
             var events = new List<AbstractEvent>();
-            Transition trans = null;
-            
-            var tempo = 0.0f;
-            var time = new List<float>();
+            var times = new List<float>();
 
             for (var it = 0; it < depth; it++)
             {
+                //Console.Write(it+1 + " - ");
                 //Console.WriteLine(state);
                 //Console.WriteLine(PI.First().Key);
                 //Console.WriteLine(state == PI.First().Key);
                 //var estado = state;
                 //var estadoPi = PI.First().Key;
-                var auxa = PI[state];
+
                 foreach (var pi in PI[state])
                 {
-                    if (!sch.Where(sc => !sc.Key.IsControllable && sc.Value < sch[pi]).Any()) // Trata infactibilidades temporais
+                    //!sch.Where(sc => !sc.Key.IsControllable && sc.Value < sch[pi]).Any()
+                    var aaaa = !sch.Internal.Where(sc => !sc.Key.IsControllable && sc.Value < sch[pi]).Any();
+                    
+                    if (!sch.Internal.Where(sc => !sc.Key.IsControllable && sc.Value < sch[pi]).Any()) // Trata infactibilidades temporais
                     {
-                        var aux = transitions[state];
                         try
                         {
-                            trans =
-                            transitions[state].Where(
-                                t => (t.Trigger.IsControllable && res[t.Trigger] > 0) || !t.Trigger.IsControllable)
-                                .Single(t => t.Trigger == pi);
+                            (e, dest) = transitions[state].Where(
+                                    t => (t.Key.IsControllable && res[t.Key] > 0) || !t.Key.IsControllable)
+                                    .Single(t => t.Key == pi);
                             break;
                         }
                         catch { }
                     }
                 }
 
-                var e = trans.Trigger;
-                events.Add(e);
-                if (e.IsControllable) res[e]--;
-                tempo += sch[e];
-                time.Add(tempo);
-                sch = update(sch, e);
-                state = trans.Destination;
-
-                if (sch.Any(kvp => kvp.Value == Double.NaN)) throw new Exception("Incorrect sequence");
-            }
-            if (state != destination) time.Add(float.PositiveInfinity);
-
-            return Tuple.Create(events, time);
-        }
-
-        public static Tuple<List<AbstractEvent>, List<float>> SequenceModular(Scheduler sch, int depth, Update update, Restriction res,
-                    List<(Dictionary<AbstractState, Transition[]> transitions, Dictionary<AbstractState, List<(AbstractEvent, double)>> policy, AbstractState state, AbstractState initial_state)> supervisors,
-                    HashSet<AbstractEvent> all_events)
-        {
-            res = new Restriction(res);
-
-            //var initial_state_const = supervisors.Select(s => s.state);
-            var initial_state = supervisors.Select(s => s.state);
-            //var initial_state = supervisors.Select(s => s.state.Clone()).ToList();
-            var events = new List<AbstractEvent>();
-
-            var tempo = 0.0f;
-            var time = new List<float>();
-
-            int c51 = 0;
-            int c53 = 0;
-            var e51 = new Event("51", Controllability.Controllable);
-            var e53 = new Event("53", Controllability.Controllable);
-            var e63 = new Event("63", Controllability.Controllable);
-            var e65 = new Event("65", Controllability.Controllable);
-
-            for (var it = 0; it < depth; it++)
-            {
-                //Console.Write(it+1 + " - ");
-
-                //var state_aux = supervisors.Select(s => s.state).ToArray();
-                //var m1 = state_aux[0].ToString().ElementAt(0);
-                //var r1 = state_aux[0].ToString().ElementAt(2);
-                //var e1 = state_aux[0].ToString().ElementAt(4);
-                //var m2 = state_aux[1].ToString().ElementAt(0);
-                //var e2 = state_aux[1].ToString().ElementAt(4);
-                //var m3 = state_aux[2].ToString().ElementAt(0);
-                //var e3 = state_aux[2].ToString().ElementAt(4);
-                //var m4 = state_aux[3].ToString().ElementAt(0);
-                //var e4 = state_aux[3].ToString().ElementAt(4);
-
-                //Console.WriteLine($"{events.Count() + 1} - {m1}|{m2}|{m3}|{m4}|{r1}|{e1}|{e2}|{e3}|{e4}");
-
-
-                AbstractEvent e = null;
-                var enabled_events = new HashSet<AbstractEvent>(all_events);
-                var sumByEvent = new Dictionary<AbstractEvent, double>();
-
-                // Encontra a interseção dos eventos habilitados em cada supervisor
-                foreach (var sup in supervisors)
-                    enabled_events = enabled_events.Intersect(sup.transitions[sup.state].Select(t => t.Trigger)).ToSet();
-
-                // Soma os valores das políticas de cada supervisor para cada evento
-                foreach (var (transitions, policy, state, init_state) in supervisors)
-                    if (policy.TryGetValue(state, out var ev))
-                        foreach (var (abstractEvent, value) in ev)
-                            if (sumByEvent.TryGetValue(abstractEvent, out var somaAtual))
-                                sumByEvent[abstractEvent] = somaAtual + value;
-                            else
-                                sumByEvent.Add(abstractEvent, value);
-
-                var ordered_events = sumByEvent
-                    .Where(kv => enabled_events.Contains(kv.Key))
-                    .ToDictionary(kv => kv.Key, kv => kv.Value)
-                    .OrderByDescending(v => v.Value)
-                    .ThenByDescending(k => k.Key.ToString()).ToList(); // Última ordenação necessária para bater com o monolítico. No caso do SFM, deve ser ThenByDescending. No caso
-                                                             // do Cluster Tool, deve ser thenBy.
-
-                var asdasd = 0;
-                //foreach (var kv in ordered_events)
-                //{
-                //    Console.WriteLine(kv.Key.ToString() + ": " + kv.Value.ToString());
-                //}
-                //Console.WriteLine();
-
-                /////////////////////////////////////////
-                //foreach (var kvp in ordered_events)
-                //{
-                //    var ev = kvp.Key;
-                //    var sum = kvp.Value;
-
-                //    Console.WriteLine($"State: {ev}, Sum: {sum}");
-                //}
-                //if (it == 48)
-                //{
-                //    Console.WriteLine("*******************************************");
-                //}
-
-                // Se só tem eventos não controláveis
-                if (!ordered_events.Select(c => c.Key).Where(cc => cc.IsControllable).Any())
-                {
-                    var min = sch
-                        .Where(kvp => !float.IsInfinity(kvp.Value) && !kvp.Key.IsControllable)
-                        .Select(kvp => kvp.Value).Append(float.PositiveInfinity)
-                        .Min();
-
-                    var enable = sch
-                        .Where(kvp => kvp.Value <= min && !float.IsInfinity(kvp.Value))
-                        .Select(kvp => kvp.Key).ToSet();
-
-                    enable.IntersectWith(ordered_events.Select(c => c.Key).ToSet());
-
-                    e = enable.OrderByDescending(ev => ev.ToString()).First();
-                }
-                // Se tem algum evento controlável
-                else
-                {
-                    //if (it >= 999129)
-                    //{
-                    //    Console.WriteLine("*******************************************");
-                    //}
-                    //if (ordered_events.Where(kvp=>kvp.Key.IsControllable).Count() == 1 
-                    //    && (ordered_events.Where(kvp => kvp.Key.IsControllable).Select(k => k.Key).First() == e63
-                    //        || ordered_events.Where(kvp => kvp.Key.IsControllable).Select(k => k.Key).First() == e65))
-                    //{
-                    //    e = ordered_events.Where(kvp => kvp.Key.IsControllable).Select(k => k.Key).First();
-                    //    var ASDASDAS = 0;
-                    //}
-                    //else
-                    //{
-
-                    // Para cada evento habilitado
-                    foreach (var ev in ordered_events.Select(ev => ev.Key))
-                    {
-                        //var t1 = !sch.Where(sc => !sc.Key.IsControllable && sc.Value < sch[ev]).Any();
-                        //var t2 = !(ev.ToString() == "63" && sch[e63] > 0 || ev.ToString() == "65" && sch[e65] > 0);
-                        //var t3 = ordered_events.Where(kvp => kvp.Key.IsControllable).Count() == 1
-                        //            && (ordered_events.Where(kvp => kvp.Key.IsControllable).Select(k => k.Key).First() == e63
-                        //            || ordered_events.Where(kvp => kvp.Key.IsControllable).Select(k => k.Key).First() == e65);
-                        //var s1 = ordered_events.Where(kvp => kvp.Key.IsControllable).Count() == 1;
-                        //var s2 = ordered_events.Where(kvp => kvp.Key.IsControllable).Select(k => k.Key).First() == e63;
-                        //var s3 = ordered_events.Where(kvp => kvp.Key.IsControllable).Select(k => k.Key).First() == e65;
-
-                        // Se 1) o evento é não controlável e tem tempo para execução menor que min E 2) não forem os eventos 63 ou 65 com tempo para execução 
-                        // maior que 0 OU 3) só tiver mais um evento disponível em restriction
-                        if (!sch.Where(sc => !sc.Key.IsControllable && sc.Value < sch[ev]).Any() &&
-                            (!(ev == e63 && sch[e63] > 0 || ev == e65 && sch[e65] > 0) || res.Select(r => (int)r.Value).ToArray().Sum() == 1)
-                                            //|| (ordered_events.Where(kvp => kvp.Key.IsControllable).Count() == 1
-                                            //    && (ordered_events.Where(kvp => kvp.Key.IsControllable).Select(k => k.Key).First() == e63
-                                            //    || ordered_events.Where(kvp => kvp.Key.IsControllable).Select(k => k.Key).First() == e65))
-                                            ) // Trata infactibilidades temporais
-                            // Se o evento for controlável e ainda estiver disponível em restriction
-                            if (ev.IsControllable && res[ev] > 0)
-                            {
-                                // Se não for o evento 53 - para produção alternando 51 e 53 
-                                if (ev != e53)
-                                {
-                                    e = ev;
-                                    break;
-                                }
-                                // Se for o evento 53, se a quantidade de eventos 51 forem iguais a quantidade de eventos 53
-                                else if (c51 == c53)
-                                {
-                                    e = ev;
-                                    break;
-                                }
-                                else
-                                    e = ev;
-                            }
-                            else
-                                e = ev;
-                        //}
-                    }
-                }
-                //Console.WriteLine(e);
-                //Console.WriteLine();
-
-                if (e == e51)
-                    c51++;
-                if (e == e53)
-                    c53++;
-                events.Add(e);
+                //var e = trans.Trigger;
+                //events.Add(e);
+                //if (e.IsControllable) res[e]--;
+                //tempo += sch[e];
+                //time.Add(tempo);
+                //sch = update(sch, e);
+                //state = trans.Destination;
 
                 //Console.WriteLine(e);
-
-                if (e.IsControllable)
-                    res[e]--;
-                tempo += sch[e];
-                time.Add(tempo);
-                sch = update(sch, e);
-
-                // Atualiza os estados atuais de todos os supervisores
-                for (int i = 0; i < supervisors.Count; i++)
-                {
-                    var sup = supervisors[i];
-                    sup.state = supervisors[i].transitions[supervisors[i].state].Where(ev => ev.Trigger == e).Single().Destination;
-                    supervisors[i] = sup;
-                }
-
-                if (sch.Any(kvp => kvp.Value == Double.NaN)) throw new Exception("Incorrect sequence");
-            }
-
-            var final_state = supervisors.Select(s => s.state);
-
-            foreach (var states in initial_state.Zip(final_state, (i, f) => (i, f)))
-                if (states.i != states.f)
-                {
-                    time.Add(float.PositiveInfinity);
-                    Console.WriteLine("Incorrect sequence");
-                    break;
-                }
-
-            return Tuple.Create(events, time);
-        }
-
-        public static List<AbstractEvent> SequenceWithControllables(AbstractState initial, AbstractState destination, int depth,
-                    Restriction res, Dictionary<AbstractState, Transition[]> transitions, Dictionary<AbstractState, List<AbstractEvent>> PI)
-        {
-            res = new Restriction(res);
-
-            var state = initial;
-            var events = new List<AbstractEvent>();
-
-            for (var it = 0; it < depth; it++)
-            {
-                Transition trans = null;
-
-                foreach (var pi in PI[state])
-                {
-                    if (res[pi] > 0)
-                    {
-                        try
-                        {
-                            trans = transitions[state].Single(t => t.Trigger == pi);
-                            break;
-                        }
-                        catch { }
-                    }
-                }
-
-                var e = trans.Trigger;
                 events.Add(e);
-                if (e.IsControllable) res[e]--;
-                state = trans.Destination;
+                if (e.IsControllable) res = res.Update(e);
+                sch = sch.Update(e);
+                times.Add(sch.ElapsedTime);
+                state = dest;
             }
-            if (state != destination) Console.WriteLine("Não chegou no estado marcado"); ;
+            if (state != destination) times.Add(float.PositiveInfinity);
 
-            return events;
+            return Tuple.Create(events, times);
         }
 
-        public static Tuple<List<AbstractEvent>, List<float>> SequenceOccupancyRate(AbstractState initial, AbstractState destination, Scheduler sch, int depth,
-                    Update update, Restriction res, Dictionary<AbstractState, Transition[]> transitions, Dictionary<AbstractState, List<AbstractEvent>> PI)
-        {
-            double robot = 0;
-            double occupancy = 0;
+        //public static Tuple<List<AbstractEvent>, List<float>> SequenceModular(Scheduler sch, int depth, Update update, Restriction res,
+        //            List<(Dictionary<AbstractState, Transition[]> transitions, Dictionary<AbstractState, List<(AbstractEvent, double)>> policy, AbstractState state, AbstractState initial_state)> supervisors,
+        //            HashSet<AbstractEvent> all_events)
+        //{
+        //    res = new Restriction(res);
 
-            res = new Restriction(res);
+        //    //var initial_state_const = supervisors.Select(s => s.state);
+        //    var initial_state = supervisors.Select(s => s.state);
+        //    //var initial_state = supervisors.Select(s => s.state.Clone()).ToList();
+        //    var events = new List<AbstractEvent>();
 
-            var state = initial;
-            var events = new List<AbstractEvent>();
+        //    var tempo = 0.0f;
+        //    var time = new List<float>();
 
-            var tempo = 0.0f;
-            var time = new List<float>();
+        //    int c51 = 0;
+        //    int c53 = 0;
+        //    var e51 = new Event("51", Controllability.Controllable);
+        //    var e53 = new Event("53", Controllability.Controllable);
+        //    var e63 = new Event("63", Controllability.Controllable);
+        //    var e65 = new Event("65", Controllability.Controllable);
 
-            for (var it = 0; it < depth; it++)
-            {
-                Transition trans = null;
-                foreach (var pi in PI[state])
-                {
-                    if (!sch.Where(sc => !sc.Key.IsControllable && sc.Value < sch[pi]).Any()) // Trata infactibilidades temporais
-                    {
-                        try
-                        {
-                            if (occupancy > 0.7)
-                            {
-                                trans = transitions[state]
-                                    .Where(t => (t.Trigger.IsControllable && res[t.Trigger] > 0) || !t.Trigger.IsControllable)
-                                    .Where(t => t.Trigger.ToString() != "31" && t.Trigger.ToString() != "33" && t.Trigger.ToString() != "35" &&
-                                    t.Trigger.ToString() != "37" && t.Trigger.ToString() != "39")
-                                    .Single(t => t.Trigger == pi);
-                                break;
-                            }
-                            else
-                            {
-                                trans = transitions[state]
-                                    .Where(t => (t.Trigger.IsControllable && res[t.Trigger] > 0) || !t.Trigger.IsControllable)
-                                    .Single(t => t.Trigger == pi);
-                                break;
-                            }
-                        }
-                        catch { }
-                    }
-                }
+        //    for (var it = 0; it < depth; it++)
+        //    {
+        //        //Console.Write(it+1 + " - ");
 
-                // Caso não tenha mais nenhum evento possível que não seja do robô, espera o tempo e executa algum evento do robô
-                if (trans == null)
-                {
-                    trans = transitions[state]
-                        .Where(t => (t.Trigger.IsControllable && res[t.Trigger] > 0) || !t.Trigger.IsControllable)
-                        .Single(t => t.Trigger == PI[state].First());
-                    tempo = (float)(robot / 0.7);
-                }
+        //        //var state_aux = supervisors.Select(s => s.state).ToArray();
+        //        //var m1 = state_aux[0].ToString().ElementAt(0);
+        //        //var r1 = state_aux[0].ToString().ElementAt(2);
+        //        //var e1 = state_aux[0].ToString().ElementAt(4);
+        //        //var m2 = state_aux[1].ToString().ElementAt(0);
+        //        //var e2 = state_aux[1].ToString().ElementAt(4);
+        //        //var m3 = state_aux[2].ToString().ElementAt(0);
+        //        //var e3 = state_aux[2].ToString().ElementAt(4);
+        //        //var m4 = state_aux[3].ToString().ElementAt(0);
+        //        //var e4 = state_aux[3].ToString().ElementAt(4);
 
-                var e = trans.Trigger;
-                events.Add(e);
-                if (e.IsControllable) res[e]--;
-                tempo += sch[e];
-                time.Add(tempo);
-                sch = update(sch, e);
-                robot += GetRobotTime(e);
-                occupancy = robot / time.Last();
-
-                state = trans.Destination;
-
-                if (sch.Any(kvp => kvp.Value == Double.NaN)) throw new Exception("Incorrect sequence");
-            }
-            if (state != destination) time.Add(float.PositiveInfinity);
-
-            return Tuple.Create(events, time);
-        }
-        
-        public static float GetRobotTime(AbstractEvent e)
-        {
-            switch (e.ToString())
-            {
-                case "31":
-                    return 21;
-                case "33":
-                    return 19;
-                case "35":
-                    return 16;
-                case "37":
-                    return 24;
-                case "39":
-                    return 20;
-                default: return 0;
-            }
-        }
-
-        public static void ThroughputEvaluation(List<AbstractEvent> seq, List<float> time)
-        {
-            var seq_time = seq.Zip(time, (e, t) => (e, t)).ToList();
-
-            var sequencia = seq_time.Where(kvp => kvp.e.ToString() == "11" || kvp.e.ToString() == "21" || kvp.e.ToString() == "64" || kvp.e.ToString() == "66");
-
-            List<float> start = new List<float> { };
-            int count11 = 0;
-            int count21 = 0;
-
-            foreach (var item in sequencia)
-            {
-                var evento = item.e;
-                var tempo = item.t;
-
-                if (evento.ToString() == "11") count11++;
-                if (evento.ToString() == "21") count21++;
-
-                if (evento.ToString() == "11" & count11 >= count21)
-                    start.Add(tempo);
-
-                if (evento.ToString() == "21" & count11 >= count21)
-                    start.Add(tempo);
-
-                if (evento.ToString() == "64")
-                {
-                    Console.WriteLine($"Produto A - Início: {start.First()} - Fim: {tempo} - Tempo: {tempo - start.First()}");
-                    start.RemoveRange(0, 1);
-                }
-
-                if (evento.ToString() == "66")
-                {
-                    Console.WriteLine($"Produto B - Início: {start.First()} - Fim: {tempo} - Tempo: {tempo - start.First()}");
-                    start.RemoveRange(0, 1);
-                }
-            }
-        }
-
-        public static float TimeEvaluationControllable(ISchedulingProblem problem, List<AbstractEvent> sequence, AbstractState target = null)
-        {
-            float time = 0;
-
-            target = target ?? problem.TargetState;
-            var state = problem.InitialState;
-            var transitions = problem.Supervisor.Transitions.GroupBy(t => t.Origin)
-                .ToDictionary(g => g.Key, g => g.ToDictionary(t => t.Trigger, t => t.Destination));
-            var events = new List<AbstractEvent>();
-            var sch = problem.InitialScheduler;
-            var k = 0;
-
-            while (true)
-            {
-                var e63 = new Event("63", Controllability.Controllable);
-                var e65 = new Event("65", Controllability.Controllable);
-                Transition trans = null;
-
-                if (k < sequence.Count())
-                {
-                    if (transitions[state].ContainsKey(sequence[k]))
-                    {
-                        var min = sch.Where(kvp => !float.IsInfinity(kvp.Value) && !kvp.Key.IsControllable)
-                            .Select(kvp => kvp.Value).Append(float.PositiveInfinity).Min();
-                        if (sch[e63] > min) { }
-                        else
-                        {
-                            trans = new Transition(state, sequence[k], transitions[state][sequence[k]]);
-                            k++;
-                        }
-                    }
-                }
-                if (trans == null)
-                {
-                    var min = sch.Where(kvp => !float.IsInfinity(kvp.Value) && !kvp.Key.IsControllable)
-                    .Select(kvp => kvp.Value).Append(float.PositiveInfinity).Min();
-
-                    var enable = sch.Where(kvp => kvp.Value <= min && !float.IsInfinity(kvp.Value)).Select(kvp => kvp.Key).ToSet();
-
-                    enable.IntersectWith(transitions[state].Keys);
-
-                    if (enable.All(e => e.IsControllable)) break;
-
-                    trans = new Transition(state, enable.First(e => !e.IsControllable), transitions[state][enable.First(e => !e.IsControllable)]);
-
-                    if (trans == null) break;
-                }
-
-                var ev = trans.Trigger;
-                state = trans.Destination;
-
-                events.Add(ev);
-                time += sch[ev];
-                sch = problem.UpdateFunction(sch, ev);
-            }
-
-            if (state != target) throw new Exception($"The target state ({target}) was not reached!");
-
-            return (time);
-        }
-
-        public static float TimeEvaluationControllableStochastic(ISchedulingProblemAB problem, List<AbstractEvent> seq, double stdDev,
-            AbstractState target = null)
-        {
-            var sequence = new List<AbstractEvent> { };
-            foreach (AbstractEvent e in seq)
-            {
-                if (e.IsControllable) sequence.Add(e);
-            }
-
-            target = target ?? problem.TargetState;
-            var state = problem.InitialState;
-            var transitions = problem.Supervisor.Transitions.GroupBy(t => t.Origin)
-                .ToDictionary(g => g.Key, g => g.ToDictionary(t => t.Trigger, t => t.Destination));
-            var events = new List<AbstractEvent>();
-            var sch = problem.InitialScheduler;
-            var k = 0;
-
-            float time = 0;
-
-            while (true)
-            {
-                Transition trans = null;
-                var e63 = new Event("63", Controllability.Controllable);
-                var e65 = new Event("65", Controllability.Controllable);
-
-                if (k < sequence.Count())
-                {
-                    if (transitions[state].ContainsKey(sequence[k]))
-                    {
-                        if ((sequence[k].ToString() == "63" && sch[e63] > 0 || sequence[k].ToString() == "65" && sch[e65] > 0) && k != sequence.Count() - 1) { }
-                        else
-                        {
-                            trans = new Transition(state, sequence[k], transitions[state][sequence[k]]);
-                            k++;
-                        }
-
-                    }
-                }
-                if (trans == null)
-                {
-                    var min = sch.Where(kvp => !float.IsInfinity(kvp.Value) && !kvp.Key.IsControllable)
-                    .Select(kvp => kvp.Value).Append(float.PositiveInfinity).Min();
-
-                    //if (sch[e63] > 0 && transitions[state].Any(t => t.Value.ToString() == "63"))
-                    //    if (sch[e63] < min) min = sch[e63];
-                    //if (sch[e65] > 0 && transitions[state].Any(t => t.Value.ToString() == "65"))
-                    //    if (sch[e65] < min) min = sch[e65];
-                    var aux = transitions[state];
-
-                    var enable = sch.Where(kvp => kvp.Value <= min && !float.IsInfinity(kvp.Value)).Select(kvp => kvp.Key).ToSet();
-
-                    enable.IntersectWith(transitions[state].Keys);
-
-                    if (enable.All(e => e.IsControllable))
-                        break;
-
-                    trans = new Transition(state, enable.First(e => !e.IsControllable), transitions[state][enable.First(e => !e.IsControllable)]);
-
-                    if (trans == null)
-                        break;
-
-                }
-
-                var ev = trans.Trigger;
-                state = trans.Destination;
-
-                events.Add(ev);
-                time += sch[ev];
-
-                //Console.WriteLine($"{k} - Evento: {ev} - Tempo: {time}");
-
-                sch = problem.StochasticUpdateFunction(sch, ev, stdDev);
-                //if (sch.Values.Any(v => float.IsNaN(v)))
-                //    Console.WriteLine("NaN");
-
-            }
-
-            if (state != target)
-            {
-
-                //var aaa = 0;
-                //var bbb = transitions[state];
-                throw new Exception($"The target state ({target}) was not reached!");
-            }
+        //        //Console.WriteLine($"{events.Count() + 1} - {m1}|{m2}|{m3}|{m4}|{r1}|{e1}|{e2}|{e3}|{e4}");
 
 
-            return (time);
-        }
+        //        AbstractEvent e = null;
+        //        var enabled_events = new HashSet<AbstractEvent>(all_events);
+        //        var sumByEvent = new Dictionary<AbstractEvent, double>();
 
-        private static double NormalSample(Random rand, double mean = 0, double stdDev = 1)
-        {
-            var u1 = 1.0 - rand.NextDouble();
-            var u2 = 1.0 - rand.NextDouble();
-            var stdNormal = Math.Sqrt(-2.0 * Math.Log(u1)) * Math.Sin(2.0 * Math.PI * u2);
-            return mean + stdDev * stdNormal;
-        }
+        //        // Encontra a interseção dos eventos habilitados em cada supervisor
+        //        foreach (var sup in supervisors)
+        //            enabled_events = enabled_events.Intersect(sup.transitions[sup.state].Select(t => t.Trigger)).ToSet();
+
+        //        // Soma os valores das políticas de cada supervisor para cada evento
+        //        foreach (var (transitions, policy, state, init_state) in supervisors)
+        //            if (policy.TryGetValue(state, out var ev))
+        //                foreach (var (abstractEvent, value) in ev)
+        //                    if (sumByEvent.TryGetValue(abstractEvent, out var somaAtual))
+        //                        sumByEvent[abstractEvent] = somaAtual + value;
+        //                    else
+        //                        sumByEvent.Add(abstractEvent, value);
+
+        //        var ordered_events = sumByEvent
+        //            .Where(kv => enabled_events.Contains(kv.Key))
+        //            .ToDictionary(kv => kv.Key, kv => kv.Value)
+        //            .OrderByDescending(v => v.Value)
+        //            .ThenByDescending(k => k.Key.ToString()).ToList(); // Última ordenação necessária para bater com o monolítico. No caso do SFM, deve ser ThenByDescending. No caso
+        //                                                               // do Cluster Tool, deve ser thenBy.
+
+        //        var asdasd = 0;
+        //        //foreach (var kv in ordered_events)
+        //        //{
+        //        //    Console.WriteLine(kv.Key.ToString() + ": " + kv.Value.ToString());
+        //        //}
+        //        //Console.WriteLine();
+
+        //        /////////////////////////////////////////
+        //        //foreach (var kvp in ordered_events)
+        //        //{
+        //        //    var ev = kvp.Key;
+        //        //    var sum = kvp.Value;
+
+        //        //    Console.WriteLine($"State: {ev}, Sum: {sum}");
+        //        //}
+        //        //if (it == 48)
+        //        //{
+        //        //    Console.WriteLine("*******************************************");
+        //        //}
+
+        //        // Se só tem eventos não controláveis
+        //        if (!ordered_events.Select(c => c.Key).Where(cc => cc.IsControllable).Any())
+        //        {
+        //            var min = sch
+        //                .Where(kvp => !float.IsInfinity(kvp.Value) && !kvp.Key.IsControllable)
+        //                .Select(kvp => kvp.Value).Append(float.PositiveInfinity)
+        //                .Min();
+
+        //            var enable = sch
+        //                .Where(kvp => kvp.Value <= min && !float.IsInfinity(kvp.Value))
+        //                .Select(kvp => kvp.Key).ToSet();
+
+        //            enable.IntersectWith(ordered_events.Select(c => c.Key).ToSet());
+
+        //            e = enable.OrderByDescending(ev => ev.ToString()).First();
+        //        }
+        //        // Se tem algum evento controlável
+        //        else
+        //        {
+        //            //if (it >= 999129)
+        //            //{
+        //            //    Console.WriteLine("*******************************************");
+        //            //}
+        //            //if (ordered_events.Where(kvp=>kvp.Key.IsControllable).Count() == 1 
+        //            //    && (ordered_events.Where(kvp => kvp.Key.IsControllable).Select(k => k.Key).First() == e63
+        //            //        || ordered_events.Where(kvp => kvp.Key.IsControllable).Select(k => k.Key).First() == e65))
+        //            //{
+        //            //    e = ordered_events.Where(kvp => kvp.Key.IsControllable).Select(k => k.Key).First();
+        //            //    var ASDASDAS = 0;
+        //            //}
+        //            //else
+        //            //{
+
+        //            // Para cada evento habilitado
+        //            foreach (var ev in ordered_events.Select(ev => ev.Key))
+        //            {
+        //                //var t1 = !sch.Where(sc => !sc.Key.IsControllable && sc.Value < sch[ev]).Any();
+        //                //var t2 = !(ev.ToString() == "63" && sch[e63] > 0 || ev.ToString() == "65" && sch[e65] > 0);
+        //                //var t3 = ordered_events.Where(kvp => kvp.Key.IsControllable).Count() == 1
+        //                //            && (ordered_events.Where(kvp => kvp.Key.IsControllable).Select(k => k.Key).First() == e63
+        //                //            || ordered_events.Where(kvp => kvp.Key.IsControllable).Select(k => k.Key).First() == e65);
+        //                //var s1 = ordered_events.Where(kvp => kvp.Key.IsControllable).Count() == 1;
+        //                //var s2 = ordered_events.Where(kvp => kvp.Key.IsControllable).Select(k => k.Key).First() == e63;
+        //                //var s3 = ordered_events.Where(kvp => kvp.Key.IsControllable).Select(k => k.Key).First() == e65;
+
+        //                // Se 1) o evento é não controlável e tem tempo para execução menor que min E 2) não forem os eventos 63 ou 65 com tempo para execução 
+        //                // maior que 0 OU 3) só tiver mais um evento disponível em restriction
+        //                if (!sch.Where(sc => !sc.Key.IsControllable && sc.Value < sch[ev]).Any() &&
+        //                    (!(ev == e63 && sch[e63] > 0 || ev == e65 && sch[e65] > 0) || res.Select(r => (int)r.Value).ToArray().Sum() == 1)
+        //                                    //|| (ordered_events.Where(kvp => kvp.Key.IsControllable).Count() == 1
+        //                                    //    && (ordered_events.Where(kvp => kvp.Key.IsControllable).Select(k => k.Key).First() == e63
+        //                                    //    || ordered_events.Where(kvp => kvp.Key.IsControllable).Select(k => k.Key).First() == e65))
+        //                                    ) // Trata infactibilidades temporais
+        //                    // Se o evento for controlável e ainda estiver disponível em restriction
+        //                    if (ev.IsControllable && res[ev] > 0)
+        //                    {
+        //                        // Se não for o evento 53 - para produção alternando 51 e 53 
+        //                        if (ev != e53)
+        //                        {
+        //                            e = ev;
+        //                            break;
+        //                        }
+        //                        // Se for o evento 53, se a quantidade de eventos 51 forem iguais a quantidade de eventos 53
+        //                        else if (c51 == c53)
+        //                        {
+        //                            e = ev;
+        //                            break;
+        //                        }
+        //                        else
+        //                            e = ev;
+        //                    }
+        //                    else
+        //                        e = ev;
+        //                //}
+        //            }
+        //        }
+        //        //Console.WriteLine(e);
+        //        //Console.WriteLine();
+
+        //        if (e == e51)
+        //            c51++;
+        //        if (e == e53)
+        //            c53++;
+        //        events.Add(e);
+
+        //        //Console.WriteLine(e);
+
+        //        if (e.IsControllable)
+        //            res[e]--;
+        //        tempo += sch[e];
+        //        time.Add(tempo);
+        //        sch = update(sch, e);
+
+        //        // Atualiza os estados atuais de todos os supervisores
+        //        for (int i = 0; i < supervisors.Count; i++)
+        //        {
+        //            var sup = supervisors[i];
+        //            sup.state = supervisors[i].transitions[supervisors[i].state].Where(ev => ev.Trigger == e).Single().Destination;
+        //            supervisors[i] = sup;
+        //        }
+
+        //        if (sch.Any(kvp => kvp.Value == Double.NaN)) throw new Exception("Incorrect sequence");
+        //    }
+
+        //    var final_state = supervisors.Select(s => s.state);
+
+        //    foreach (var states in initial_state.Zip(final_state, (i, f) => (i, f)))
+        //        if (states.i != states.f)
+        //        {
+        //            time.Add(float.PositiveInfinity);
+        //            Console.WriteLine("Incorrect sequence");
+        //            break;
+        //        }
+
+        //    return Tuple.Create(events, time);
+        //}
+
+        //public static List<AbstractEvent> SequenceWithControllables(AbstractState initial, AbstractState destination, int depth,
+        //            Restriction res, Dictionary<AbstractState, Transition[]> transitions, Dictionary<AbstractState, List<AbstractEvent>> PI)
+        //{
+        //    res = new Restriction(res);
+
+        //    var state = initial;
+        //    var events = new List<AbstractEvent>();
+
+        //    for (var it = 0; it < depth; it++)
+        //    {
+        //        Transition trans = null;
+
+        //        foreach (var pi in PI[state])
+        //        {
+        //            if (res[pi] > 0)
+        //            {
+        //                try
+        //                {
+        //                    trans = transitions[state].Single(t => t.Trigger == pi);
+        //                    break;
+        //                }
+        //                catch { }
+        //            }
+        //        }
+
+        //        var e = trans.Trigger;
+        //        events.Add(e);
+        //        if (e.IsControllable) res[e]--;
+        //        state = trans.Destination;
+        //    }
+        //    if (state != destination) Console.WriteLine("Não chegou no estado marcado"); ;
+
+        //    return events;
+        //}
+
+        //public static Tuple<List<AbstractEvent>, List<float>> SequenceOccupancyRate(AbstractState initial, AbstractState destination, Scheduler sch, int depth,
+        //            Update update, Restriction res, Dictionary<AbstractState, Transition[]> transitions, Dictionary<AbstractState, List<AbstractEvent>> PI)
+        //{
+        //    double robot = 0;
+        //    double occupancy = 0;
+
+        //    res = new Restriction(res);
+
+        //    var state = initial;
+        //    var events = new List<AbstractEvent>();
+
+        //    var tempo = 0.0f;
+        //    var time = new List<float>();
+
+        //    for (var it = 0; it < depth; it++)
+        //    {
+        //        Transition trans = null;
+        //        foreach (var pi in PI[state])
+        //        {
+        //            if (!sch.Where(sc => !sc.Key.IsControllable && sc.Value < sch[pi]).Any()) // Trata infactibilidades temporais
+        //            {
+        //                try
+        //                {
+        //                    if (occupancy > 0.7)
+        //                    {
+        //                        trans = transitions[state]
+        //                            .Where(t => (t.Trigger.IsControllable && res[t.Trigger] > 0) || !t.Trigger.IsControllable)
+        //                            .Where(t => t.Trigger.ToString() != "31" && t.Trigger.ToString() != "33" && t.Trigger.ToString() != "35" &&
+        //                            t.Trigger.ToString() != "37" && t.Trigger.ToString() != "39")
+        //                            .Single(t => t.Trigger == pi);
+        //                        break;
+        //                    }
+        //                    else
+        //                    {
+        //                        trans = transitions[state]
+        //                            .Where(t => (t.Trigger.IsControllable && res[t.Trigger] > 0) || !t.Trigger.IsControllable)
+        //                            .Single(t => t.Trigger == pi);
+        //                        break;
+        //                    }
+        //                }
+        //                catch { }
+        //            }
+        //        }
+
+        //        // Caso não tenha mais nenhum evento possível que não seja do robô, espera o tempo e executa algum evento do robô
+        //        if (trans == null)
+        //        {
+        //            trans = transitions[state]
+        //                .Where(t => (t.Trigger.IsControllable && res[t.Trigger] > 0) || !t.Trigger.IsControllable)
+        //                .Single(t => t.Trigger == PI[state].First());
+        //            tempo = (float)(robot / 0.7);
+        //        }
+
+        //        var e = trans.Trigger;
+        //        events.Add(e);
+        //        if (e.IsControllable) res[e]--;
+        //        tempo += sch[e];
+        //        time.Add(tempo);
+        //        sch = update(sch, e);
+        //        robot += GetRobotTime(e);
+        //        occupancy = robot / time.Last();
+
+        //        state = trans.Destination;
+
+        //        if (sch.Any(kvp => kvp.Value == Double.NaN)) throw new Exception("Incorrect sequence");
+        //    }
+        //    if (state != destination) time.Add(float.PositiveInfinity);
+
+        //    return Tuple.Create(events, time);
+        //}
+
+        //public static float GetRobotTime(AbstractEvent e)
+        //{
+        //    switch (e.ToString())
+        //    {
+        //        case "31":
+        //            return 21;
+        //        case "33":
+        //            return 19;
+        //        case "35":
+        //            return 16;
+        //        case "37":
+        //            return 24;
+        //        case "39":
+        //            return 20;
+        //        default: return 0;
+        //    }
+        //}
+
+        //public static void ThroughputEvaluation(List<AbstractEvent> seq, List<float> time)
+        //{
+        //    var seq_time = seq.Zip(time, (e, t) => (e, t)).ToList();
+
+        //    var sequencia = seq_time.Where(kvp => kvp.e.ToString() == "11" || kvp.e.ToString() == "21" || kvp.e.ToString() == "64" || kvp.e.ToString() == "66");
+
+        //    List<float> start = new List<float> { };
+        //    int count11 = 0;
+        //    int count21 = 0;
+
+        //    foreach (var item in sequencia)
+        //    {
+        //        var evento = item.e;
+        //        var tempo = item.t;
+
+        //        if (evento.ToString() == "11") count11++;
+        //        if (evento.ToString() == "21") count21++;
+
+        //        if (evento.ToString() == "11" & count11 >= count21)
+        //            start.Add(tempo);
+
+        //        if (evento.ToString() == "21" & count11 >= count21)
+        //            start.Add(tempo);
+
+        //        if (evento.ToString() == "64")
+        //        {
+        //            Console.WriteLine($"Produto A - Início: {start.First()} - Fim: {tempo} - Tempo: {tempo - start.First()}");
+        //            start.RemoveRange(0, 1);
+        //        }
+
+        //        if (evento.ToString() == "66")
+        //        {
+        //            Console.WriteLine($"Produto B - Início: {start.First()} - Fim: {tempo} - Tempo: {tempo - start.First()}");
+        //            start.RemoveRange(0, 1);
+        //        }
+        //    }
+        //}
+
+        //public static float TimeEvaluationControllable(ISchedulingProblem problem, List<AbstractEvent> sequence, AbstractState target = null)
+        //{
+        //    float time = 0;
+
+        //    target = target ?? problem.TargetState;
+        //    var state = problem.InitialState;
+        //    var transitions = problem.Supervisor.Transitions.GroupBy(t => t.Origin)
+        //        .ToDictionary(g => g.Key, g => g.ToDictionary(t => t.Trigger, t => t.Destination));
+        //    var events = new List<AbstractEvent>();
+        //    var sch = problem.InitialScheduler;
+        //    var k = 0;
+
+        //    while (true)
+        //    {
+        //        var e63 = new Event("63", Controllability.Controllable);
+        //        var e65 = new Event("65", Controllability.Controllable);
+        //        Transition trans = null;
+
+        //        if (k < sequence.Count())
+        //        {
+        //            if (transitions[state].ContainsKey(sequence[k]))
+        //            {
+        //                var min = sch.Where(kvp => !float.IsInfinity(kvp.Value) && !kvp.Key.IsControllable)
+        //                    .Select(kvp => kvp.Value).Append(float.PositiveInfinity).Min();
+        //                if (sch[e63] > min) { }
+        //                else
+        //                {
+        //                    trans = new Transition(state, sequence[k], transitions[state][sequence[k]]);
+        //                    k++;
+        //                }
+        //            }
+        //        }
+        //        if (trans == null)
+        //        {
+        //            var min = sch.Where(kvp => !float.IsInfinity(kvp.Value) && !kvp.Key.IsControllable)
+        //            .Select(kvp => kvp.Value).Append(float.PositiveInfinity).Min();
+
+        //            var enable = sch.Where(kvp => kvp.Value <= min && !float.IsInfinity(kvp.Value)).Select(kvp => kvp.Key).ToSet();
+
+        //            enable.IntersectWith(transitions[state].Keys);
+
+        //            if (enable.All(e => e.IsControllable)) break;
+
+        //            trans = new Transition(state, enable.First(e => !e.IsControllable), transitions[state][enable.First(e => !e.IsControllable)]);
+
+        //            if (trans == null) break;
+        //        }
+
+        //        var ev = trans.Trigger;
+        //        state = trans.Destination;
+
+        //        events.Add(ev);
+        //        time += sch[ev];
+        //        sch = problem.UpdateFunction(sch, ev);
+        //    }
+
+        //    if (state != target) throw new Exception($"The target state ({target}) was not reached!");
+
+        //    return (time);
+        //}
+
+        //public static float TimeEvaluationControllableStochastic(ISchedulingProblemAB problem, List<AbstractEvent> seq, double stdDev,
+        //    AbstractState target = null)
+        //{
+        //    var sequence = new List<AbstractEvent> { };
+        //    foreach (AbstractEvent e in seq)
+        //    {
+        //        if (e.IsControllable) sequence.Add(e);
+        //    }
+
+        //    target = target ?? problem.TargetState;
+        //    var state = problem.InitialState;
+        //    var transitions = problem.Supervisor.Transitions.GroupBy(t => t.Origin)
+        //        .ToDictionary(g => g.Key, g => g.ToDictionary(t => t.Trigger, t => t.Destination));
+        //    var events = new List<AbstractEvent>();
+        //    var sch = problem.InitialScheduler;
+        //    var k = 0;
+
+        //    float time = 0;
+
+        //    while (true)
+        //    {
+        //        Transition trans = null;
+        //        var e63 = new Event("63", Controllability.Controllable);
+        //        var e65 = new Event("65", Controllability.Controllable);
+
+        //        if (k < sequence.Count())
+        //        {
+        //            if (transitions[state].ContainsKey(sequence[k]))
+        //            {
+        //                if ((sequence[k].ToString() == "63" && sch[e63] > 0 || sequence[k].ToString() == "65" && sch[e65] > 0) && k != sequence.Count() - 1) { }
+        //                else
+        //                {
+        //                    trans = new Transition(state, sequence[k], transitions[state][sequence[k]]);
+        //                    k++;
+        //                }
+
+        //            }
+        //        }
+        //        if (trans == null)
+        //        {
+        //            var min = sch.Where(kvp => !float.IsInfinity(kvp.Value) && !kvp.Key.IsControllable)
+        //            .Select(kvp => kvp.Value).Append(float.PositiveInfinity).Min();
+
+        //            //if (sch[e63] > 0 && transitions[state].Any(t => t.Value.ToString() == "63"))
+        //            //    if (sch[e63] < min) min = sch[e63];
+        //            //if (sch[e65] > 0 && transitions[state].Any(t => t.Value.ToString() == "65"))
+        //            //    if (sch[e65] < min) min = sch[e65];
+        //            var aux = transitions[state];
+
+        //            var enable = sch.Where(kvp => kvp.Value <= min && !float.IsInfinity(kvp.Value)).Select(kvp => kvp.Key).ToSet();
+
+        //            enable.IntersectWith(transitions[state].Keys);
+
+        //            if (enable.All(e => e.IsControllable))
+        //                break;
+
+        //            trans = new Transition(state, enable.First(e => !e.IsControllable), transitions[state][enable.First(e => !e.IsControllable)]);
+
+        //            if (trans == null)
+        //                break;
+
+        //        }
+
+        //        var ev = trans.Trigger;
+        //        state = trans.Destination;
+
+        //        events.Add(ev);
+        //        time += sch[ev];
+
+        //        //Console.WriteLine($"{k} - Evento: {ev} - Tempo: {time}");
+
+        //        sch = problem.StochasticUpdateFunction(sch, ev, stdDev);
+        //        //if (sch.Values.Any(v => float.IsNaN(v)))
+        //        //    Console.WriteLine("NaN");
+
+        //    }
+
+        //    if (state != target)
+        //    {
+
+        //        //var aaa = 0;
+        //        //var bbb = transitions[state];
+        //        throw new Exception($"The target state ({target}) was not reached!");
+        //    }
+
+
+        //    return (time);
+        //}
+
+        //private static double NormalSample(Random rand, double mean = 0, double stdDev = 1)
+        //{
+        //    var u1 = 1.0 - rand.NextDouble();
+        //    var u2 = 1.0 - rand.NextDouble();
+        //    var stdNormal = Math.Sqrt(-2.0 * Math.Log(u1)) * Math.Sin(2.0 * Math.PI * u2);
+        //    return mean + stdDev * stdNormal;
+        //}
 
         public static void print_politica(Dictionary<AbstractState, List<(AbstractEvent, double)>> PI, bool normalizado = false)
         {

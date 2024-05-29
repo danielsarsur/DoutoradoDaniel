@@ -17,8 +17,24 @@
   </PropertyGroup>
 
   <ItemGroup>
-    <PackageReference Include="PlanningDES" Version="1.0.2" />
-    <PackageReference Include="UltraDES" Version="2.2.3" />
+    <Compile Remove="PlanningAlgorithms\**" />
+    <Compile Remove="PlanningDES\**" />
+    <Compile Remove="UltraDES-master\**" />
+    <EmbeddedResource Remove="PlanningAlgorithms\**" />
+    <EmbeddedResource Remove="PlanningDES\**" />
+    <EmbeddedResource Remove="UltraDES-master\**" />
+    <None Remove="PlanningAlgorithms\**" />
+    <None Remove="PlanningDES\**" />
+    <None Remove="UltraDES-master\**" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <PackageReference Include="ConsoleTables" Version="2.6.1" />
+    <PackageReference Include="System.Collections.Immutable" Version="8.0.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="PlanningDES\PlanningDES.csproj" />
   </ItemGroup>
 
 </Project>
