@@ -6,6 +6,7 @@ namespace PlanningDES
     public interface ISchedulingProblem
     {
         DeterministicFiniteAutomaton Supervisor { get; }
+        IEnumerable<DeterministicFiniteAutomaton> Supervisors { get; }
         IEnumerable<AbstractEvent> Events { get; }
         Dictionary<AbstractState, Dictionary<AbstractEvent, AbstractState>> Transitions { get; }
         int Depth { get; }

@@ -63,7 +63,7 @@ namespace PlanningDES.Problems
                 {
                     (s[0], _e[61], s[1]), (s[1], _e[63], s[2]), (s[1], _e[65], s[3]), (s[2], _e[64], s[0]),
                     (s[3], _e[66], s[0])
-                }, s[0], "MM");
+                }, s[0], "AM");
 
             // Specifications
             s = Enumerable.Range(0, 6).ToDictionary(i => i,
@@ -118,9 +118,39 @@ namespace PlanningDES.Problems
             Transitions = Supervisor.Transitions.GroupBy(t => t.Origin)
                 .ToDictionary(g => g.Key, g => g.ToDictionary(t => t.Trigger, t => t.Destination));
 
+            // Divisão das tarefas ativas do robô por 7 supervisores modulares locais
+            s = Enumerable.Range(0, 6)
+                .ToDictionary(i => i, i =>
+                new ExpandedState(i.ToString(), i == 0 ? 0u : 1 / 7, i == 0 ? Marking.Marked : Marking.Unmarked));
+
+            robot = new DFA(
+                new Transition[]
+                {
+                    (s[0], _e[31], s[1]), (s[1], _e[32], s[0]), (s[0], _e[33], s[2]), (s[2], _e[34], s[0]),
+                    (s[0], _e[35], s[3]), (s[3], _e[36], s[0]), (s[0], _e[37], s[4]), (s[4], _e[38], s[0]),
+                    (s[0], _e[39], s[5]), (s[5], _e[30], s[0])
+                }, s[0], "Robot");
+
+            // Divisão das tarefas ativas da Máquina de Montagem por 3 supervisores modulares locais
+            s = Enumerable.Range(0, 6)
+           .ToDictionary(i => i,
+               i => new ExpandedState(i.ToString(), i == 0 ? 0u : 1 / 3, i == 0 ? Marking.Marked : Marking.Unmarked));
+
+            am = new DFA(
+                new Transition[]
+                {
+                    (s[0], _e[61], s[1]), (s[1], _e[63], s[2]), (s[1], _e[65], s[3]), (s[2], _e[64], s[0]),
+                    (s[3], _e[66], s[0])
+                }, s[0], "AM");
+
+            var e7_e8 = DFA.ParallelComposition(e7, e8);
+
+            Supervisors = DFA.LocalModularSupervisor(new[] { c1, c2, lathe, mill, robot, am, c3, pd },
+                new[] { e1, e2, e3, e4, e5, e6, e7_e8 });
         }
 
         public DFA Supervisor { get; }
+        public IEnumerable<DFA> Supervisors { get; }
         public IEnumerable<AbstractEvent> Events { get; }
         public Dictionary<AbstractState, Dictionary<AbstractEvent, AbstractState>> Transitions { get; }
 

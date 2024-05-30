@@ -7,9 +7,9 @@ namespace PlanningDES.Problems
     [Serializable]
     internal class ExpandedState : State
     {
-        public uint Tasks { get; private set; }
+        public double Tasks { get; private set; }
 
-        public ExpandedState(string alias, uint tasks, Marking marking = Marking.Unmarked) : base(alias, marking)
+        public ExpandedState(string alias, double tasks, Marking marking = Marking.Unmarked) : base(alias, marking)
         {
             Tasks = tasks;
         }

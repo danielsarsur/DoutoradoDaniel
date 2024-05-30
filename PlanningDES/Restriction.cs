@@ -29,6 +29,8 @@ namespace PlanningDES
 
         public uint this[AbstractEvent e] => _internal.ContainsKey(e) ? _internal[e] : 0;
 
+        public IReadOnlyDictionary<AbstractEvent, uint> Internal => _internal;
+
         public Restriction Update(AbstractEvent e)
         {
             if(!_internal.ContainsKey(e) || _internal[e] == 0) throw new Exception($"Event {e} not allowed");

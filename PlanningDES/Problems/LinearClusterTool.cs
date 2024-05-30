@@ -102,9 +102,11 @@ namespace PlanningDES.Problems
             Transitions = Supervisor.Transitions.GroupBy(t => t.Origin)
                 .ToDictionary(g => g.Key, g => g.ToDictionary(t => t.Trigger, t => t.Destination));
 
+            //Supervisors = DFA.LocalModularSupervisor(plants, specs); // Conflitantes
         }
 
-        public DeterministicFiniteAutomaton Supervisor { get; }
+        public DFA Supervisor { get; }
+        public IEnumerable<DFA> Supervisors { get; }
         public IEnumerable<AbstractEvent> Events { get; }
         public Dictionary<AbstractState, Dictionary<AbstractEvent, AbstractState>> Transitions { get; }
         public int Depth => 8 * _clusters - 2;

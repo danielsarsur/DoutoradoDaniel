@@ -60,8 +60,19 @@ namespace PlanningDES.Problems
             Transitions = Supervisor.Transitions.GroupBy(t => t.Origin)
                 .ToDictionary(g => g.Key, g => g.ToDictionary(t => t.Trigger, t => t.Destination));
 
+            // Divisão das tarefas ativas das máquinas 2, 4 e 5 por 2 supervisores modulares locais
+            s = new[] { new ExpandedState("I", 0, Marking.Marked), new ExpandedState("W", 0.5, Marking.Unmarked) };
+
+            m2 = new DFA(new[] { new Transition(s[0], _e[3], s[1]), new Transition(s[1], _e[4], s[0]) }, s[0], "M2");
+
+            m4 = new DFA(new[] { new Transition(s[0], _e[7], s[1]), new Transition(s[1], _e[8], s[0]) }, s[0], "M4");
+
+            m5 = new DFA(new[] { new Transition(s[0], _e[9], s[1]), new Transition(s[1], _e[10], s[0]) }, s[0], "M5");
+
+            Supervisors = DFA.LocalModularSupervisor(new[] { m1, m2, m3, m4, m5, m6 }, new[] { e1, e2, e3, e4 });
         }
         public DFA Supervisor { get; }
+        public IEnumerable<DFA> Supervisors { get; }
         public IEnumerable<AbstractEvent> Events { get; }
         public Dictionary<AbstractState, Dictionary<AbstractEvent, AbstractState>> Transitions { get; }
         public int Depth => 12;

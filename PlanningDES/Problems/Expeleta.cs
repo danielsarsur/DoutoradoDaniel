@@ -241,6 +241,7 @@ namespace PlanningDES.Problems
         }
 
         public DFA Supervisor { get; }
+        public IEnumerable<DFA> Supervisors { get; }
         public IEnumerable<AbstractEvent> Events { get; }
         public Dictionary<AbstractState, Dictionary<AbstractEvent, AbstractState>> Transitions { get; }
 

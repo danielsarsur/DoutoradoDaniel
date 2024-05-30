@@ -36,6 +36,7 @@ namespace PlanningDES.Problems
 
         public int Depth => 4;
         public DFA Supervisor { get; }
+        public IEnumerable<DFA> Supervisors { get; }
         public IEnumerable<AbstractEvent> Events { get; }
         public Dictionary<AbstractState, Dictionary<AbstractEvent, AbstractState>> Transitions { get; }
 

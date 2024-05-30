@@ -7,7 +7,7 @@ namespace PlanningDES
 {
     public class Scheduler
     {
-        public readonly Dictionary<AbstractEvent, float> _internal;
+        private readonly Dictionary<AbstractEvent, float> _internal;
         private readonly Dictionary<AbstractEvent, (AbstractEvent end, float dt)[]> _timeTable;
         private readonly float _elapsedTime;
         
@@ -31,7 +31,6 @@ namespace PlanningDES
         public float ElapsedTime => _elapsedTime;
 
         public float this[AbstractEvent e] => _internal.ContainsKey(e) ? _internal[e] : float.PositiveInfinity;
-
 
         public IReadOnlyDictionary<AbstractEvent, float> Internal => _internal;
 

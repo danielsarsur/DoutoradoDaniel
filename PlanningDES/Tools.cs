@@ -145,7 +145,7 @@ namespace PlanningDES
             return time;
         }
 
-        public static float MetricEvaluation(this ISchedulingProblem problem, AbstractEvent[] sequence, Func<(AbstractState origin, AbstractEvent trigger, AbstractState destination), float> value, AbstractState target = null)
+        public static double MetricEvaluation(this ISchedulingProblem problem, AbstractEvent[] sequence, Func<(AbstractState origin, AbstractEvent trigger, AbstractState destination), double> value, AbstractState target = null)
         {
             target = target ?? problem.TargetState;
             var state = problem.InitialState;
@@ -153,7 +153,7 @@ namespace PlanningDES
             var events = new List<AbstractEvent>();
             var sch = problem.InitialScheduler;
 
-            float metric = 0;
+            double metric = 0;
 
             foreach (var ev in sequence)
             {
@@ -171,11 +171,11 @@ namespace PlanningDES
             return metric;
         }
 
-        public static uint ActiveTasks(this AbstractState state)
+        public static double ActiveTasks(this AbstractState state)
         {
             if (state is ExpandedState expandedState) return expandedState.Tasks;
-            if (state is AbstractCompoundState compoundState) return (uint)compoundState.S.Sum(s => s.ActiveTasks());
-            return 0u;
+            if (state is AbstractCompoundState compoundState) return (double)compoundState.S.Sum(s => s.ActiveTasks());
+            return 0d;
         }
 
         public static (double time, T result) Timming<T>(this Func<T> f)
